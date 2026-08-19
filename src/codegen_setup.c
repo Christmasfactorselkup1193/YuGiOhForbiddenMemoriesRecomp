@@ -30,6 +30,8 @@ static const PsxrecompCodegenHostConfig kCodegenConfig = {
     /* .build_dir_name        */ "build-release",
     /* .cmake_target          */ "psx-runtime",
     /* .exe_basename          */ "Yu_Gi_Oh_Forbidden_Memories_Recompiled",
+    /* .update_repo           */ "Unchiga/YuGiOhForbiddenMemoriesRecomp",
+    /* .update_asset_format   */ "ygofm-%s-win-x64.zip",
     /* .prepare_note          */
     "Uses your own disc with the local psxrecomp SDK to generate BIOS + game "
     "C, then cmake --build. The game lives under build-release/; opening this "
@@ -58,6 +60,18 @@ int psx_game_codegen_generate_and_build(const char *disc_path, char *out_exe,
     return psxrecomp_codegen_host_generate_and_build(
         disc_path, out_exe, (size_t)out_cap, err_msg, (size_t)err_cap,
         NULL, NULL);
+}
+
+int psx_game_codegen_update_check(char *local, unsigned long lcap, char *remote,
+                                  unsigned long rcap, int force) {
+    return psxrecomp_codegen_host_update_check(local, (size_t)lcap, remote,
+                                               (size_t)rcap, force);
+}
+
+int psx_game_codegen_update_apply(char *helper, unsigned long hcap, char *err,
+                                  unsigned long ecap) {
+    return psxrecomp_codegen_host_update_apply(helper, (size_t)hcap, err,
+                                               (size_t)ecap, NULL, NULL);
 }
 
 void psx_game_codegen_relaunch_or_exit(const char *disc_path) {
