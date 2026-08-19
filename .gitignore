@@ -102,3 +102,12 @@ starvation_dump.jsonl
 # Debug spill from runtime launches.
 psx_freeze_dump_*.json
 starvation_dump.jsonl
+
+# Konami artwork baked from the player's own disc by tools/disc_assets.py:
+# the duel-rank badges and letters, the CARD DROPS "New!" label, and the
+# game's text font. Derived from the disc exactly the way generated/ is
+# derived from the EXE, so like generated/ they are build output, never
+# source, and never committed or shipped.
+/src/psx_rank_sprites.c
+/src/psx_cd_sprites.c
+/src/psx_fusion_font.c
