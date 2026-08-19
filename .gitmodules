@@ -1,0 +1,4 @@
+[submodule "psxrecomp"]
+	path = psxrecomp
+	url = https://github.com/Unchiga/psxrecomp.git
+	branch = ygofm

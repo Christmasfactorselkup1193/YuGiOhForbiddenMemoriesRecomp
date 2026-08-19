@@ -152,9 +152,17 @@ Also available: `--bios <path>`, `--memcard-dir <path>`, `--no-launcher`.
 
 ## Building from source
 
-The framework is expected at `psxrecomp/`. This checkout links it by junction to
-a local clone rather than tracking it as a submodule, so `psxrecomp/` is
-gitignored — see [Framework](#framework) before building.
+The framework is a submodule at `psxrecomp/`, so clone recursively:
+
+```bash
+git clone --recurse-submodules https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp.git
+```
+
+(Already cloned without it? `git submodule update --init --recursive`.)
+
+Then generate and build. The `generate` step produces **both** the recompiled
+BIOS and the game's C — the framework ships `bios/openbios.bin` but not the
+recompiled form of it, so a fresh clone has no BIOS backend until this runs:
 
 ```bash
 python3 psxrecomp/psxrecomp_cli.py generate \
@@ -162,6 +170,9 @@ python3 psxrecomp/psxrecomp_cli.py generate \
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target psx-runtime
 ```
+
+If you would rather not do any of that by hand, the setup host does exactly
+these steps for you — see [First run](#first-run).
 
 Both `generated/` and the game's baked sprite and font sources are produced from
 **your** disc. They are gitignored and must not be published — see
@@ -194,14 +205,16 @@ MinGW DLLs can be resolved. The build directory must be a **setup host** build �
 
 ## Framework
 
-`psxrecomp/` is a junction to a local checkout, **not** a submodule, and it is
-gitignored. Cloning this repository therefore does not bring the framework with
-it, and the build will not work until you provide one.
+`psxrecomp/` is a submodule pinned to the
+[`ygofm`](https://github.com/Unchiga/psxrecomp/tree/ygofm) branch of a fork of
+[PSXRecomp](https://github.com/mstan/psxrecomp).
 
-This project also depends on framework changes that are not yet upstream —
-the disc-identity gate, a registration API for game-owned debug commands and
-guest-space overlays, and a first-run setup host that works without a launcher.
-Point `psxrecomp/` at a checkout that contains them.
+It is a fork rather than upstream because this project depends on framework work
+that is not upstream yet: the disc-identity gate, registration APIs so a title
+can own its debug commands and its guest-space overlays instead of the framework
+naming them, a per-vblank game hook, and a first-run setup host that works
+without a launcher. Those are additive and intended for upstream; the branch
+exists so this repository builds today rather than waiting on that.
 
 ---
 

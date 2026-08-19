@@ -74,8 +74,6 @@ starvation_dump.jsonl
 !/catalog_identity.json
 !/disc_probe.json
 
-# Framework linked by junction to a local checkout, not a submodule.
-/psxrecomp/
 
 # ---- release hygiene (added during repo prep) -----------------------------
 # Recompiled game C is derived from the player's own disc and must never be
