@@ -1,0 +1,71 @@
+NOTICE
+======
+
+What this repository is
+-----------------------
+
+A static recompilation project for Yu-Gi-Oh! Forbidden Memories (USA),
+serial SLUS-01411. It contains build configuration, recompiler seeds,
+analysis tooling and project metadata. It does **not** contain the game.
+
+
+What is deliberately NOT here
+-----------------------------
+
+* **No disc image.** You supply a dump of your own copy. On first launch the
+  runtime asks for it, verifies it against the CRC32 recorded in `game.toml`
+  (`disc_crc`), remembers the answer beside the executable, and never asks
+  again. A disc from another region or printing is refused with an explanation
+  rather than run.
+* **No retail BIOS.** Builds run on OpenBIOS, which is bundled by the framework
+  under the MIT licence with its notice at `psxrecomp/bios/OpenBIOS.LICENSE`.
+  A retail dump is optional and never redistributed.
+* **No recompiled game code.** `generated/` is derived from your disc. It is
+  gitignored and must not be published; see "Redistribution" below.
+* **No save data.** Memory cards are yours.
+
+
+Third-party components
+----------------------
+
+* **PSXRecomp** — https://github.com/mstan/psxrecomp
+  PolyForm Noncommercial License 1.0.0, Copyright (c) 2026 Matthew Stan.
+  Full text: `psxrecomp/LICENSE`. Additional component attributions are in
+  `psxrecomp/THIRD_PARTY_ATTRIBUTION.md`.
+* **OpenBIOS** (PCSX-Redux) — MIT, `psxrecomp/bios/OpenBIOS.LICENSE`.
+* **SDL3** — Zlib, fetched at configure time.
+
+
+Licence, in practice
+--------------------
+
+This project is offered under PolyForm Noncommercial License 1.0.0 (see
+LICENSE), matching the framework it is built on. Three consequences worth
+stating plainly, because they are easy to get wrong:
+
+1. **Noncommercial only.** No sale, no paid early access, no download page
+   funded by ads, no bundling into anything sold. Hobby, personal, educational
+   and community use are all explicitly permitted.
+2. **No sublicensing.** PolyForm does not let anyone pass the licence along.
+   If you redistribute this project or the framework, recipients take their
+   licence directly from the respective copyright holders on the same terms —
+   so keep the LICENSE files intact and do not relicense any part of it.
+3. **The licence above covers this project and the framework. It says nothing
+   about the game.** Yu-Gi-Oh! Forbidden Memories is Konami's. Nothing here
+   grants any right to it.
+
+
+Redistribution
+--------------
+
+A compiled build of this project contains the game's own code, translated.
+That is why the framework's documentation says generated sources are derived
+from your disc and must not be redistributed — and a binary built from them is
+that same material in compiled form.
+
+Sharing the *project* (this repository) is a different thing from sharing a
+*build*, and it is the safer one: a recipient supplies their own disc, runs the
+recompiler against it, and builds locally. That flow is what the packaging in
+`scripts/package_setup_release.sh` is designed around.
+
+Use only a disc image and BIOS you obtained legally.

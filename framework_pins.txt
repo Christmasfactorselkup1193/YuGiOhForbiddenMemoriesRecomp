@@ -1,0 +1,2 @@
+﻿psxrecomp=<local junction> C:\dev\memories\psxrecomp-master
+recomp-ui=<not added>

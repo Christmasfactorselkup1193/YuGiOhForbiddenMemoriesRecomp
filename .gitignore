@@ -1,0 +1,104 @@
+# Scaffold .gitignore for a PSXRecomp game repository (New Project Layout).
+# Aligned with docs/ci/templates/game.gitignore.
+
+# Build outputs
+/build/
+/build-*/
+/out/
+/.happypath/
+
+# Setup-host: players Generate game C locally (CI clears generated/).
+/generated/
+
+# Release packaging
+/release-stage/
+/dist/
+*.zip
+
+# Local PlayStation assets (never commit dumps / BIOS)
+/bios/
+/isos/
+/saves/
+/prepared_disc/
+/disc/
+.settings/
+
+# Disc / image / memcard formats
+*.bin
+*.cue
+*.iso
+*.img
+*.sub
+*.ccd
+*.mcd
+*.mcr
+*.chd
+*.car
+SCPH*.BIN
+
+# Local path/config stubs
+bios.cfg
+disc.cfg
+rom.cfg
+settings.toml
+
+# Ghidra / local analysis
+/ghidra/projects/
+*.gpr
+*.rep/
+*.lock
+*.lock~
+
+# Editor / cache
+.vs/
+.vscode/
+*.user
+*.log
+.DS_Store
+__pycache__/
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+
+# Runtime artifacts from psx-runtime launches
+psx_crash.txt
+psx_last_run_report.json
+psx_screenshot.bmp
+psx_freeze_heartbeat.json
+starvation_dump.jsonl
+
+# Diagnostic dumps (root-level) — keep catalog / probe trackable
+/*.json
+/*.bmp
+/*.png
+!/catalog_identity.json
+!/disc_probe.json
+
+# Framework linked by junction to a local checkout, not a submodule.
+/psxrecomp/
+
+# ---- release hygiene (added during repo prep) -----------------------------
+# Recompiled game C is derived from the player's own disc and must never be
+# published. `/generated/` above covers the live tree but NOT a .bak of it --
+# generated.bak/ held 118 MB of SLUS_014.11_full_*.c plus a 30 MB built exe,
+# and was staged for the first commit until it was caught.
+/generated*.bak/
+/*.bak
+
+# Saved GameFAQs guides. Other people's copyrighted writing, with bylines --
+# fine as local reference, not ours to republish.
+/docs/
+
+# Crash-repro material: RAM dumps, savestates and frozen screens are captured
+# guest memory, i.e. game data. Useful locally, not shippable.
+/bugs/
+
+# Working notes. Session handoffs and an open-bug scratchpad read as
+# in-progress and are not what a release repo should lead with.
+/HANDOFF.md
+/ISSUES.md
+/NEXT_SESSION_PROMPT.md
+
+# Debug spill from runtime launches.
+psx_freeze_dump_*.json
+starvation_dump.jsonl

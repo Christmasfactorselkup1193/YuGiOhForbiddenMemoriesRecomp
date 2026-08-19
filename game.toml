@@ -1,0 +1,130 @@
+# Autofilled by tools/new_project_layout/probe_disc.py from your legal dump.
+# Review before shipping. Runtime quirks / overlay seeds still need hand work.
+
+[game]
+name = "Yu-Gi-Oh! Forbidden Memories"
+id = "SLUS-01411"
+players = 2
+exe = "disc/SLUS_014.11"
+# No `disc` key on purpose. It used to hold an absolute path to one
+# machine's dump, which is both unshippable and untestable: with it set,
+# this machine never exercised the path every other player takes.
+#
+# The disc now comes from the player. resolve_disc_for_runtime() asks for
+# it on first launch, verifies it against disc_crc below, remembers the
+# answer in disc.cfg / disc_verified.cfg beside the exe, and never asks
+# again. `--disc <path>` still overrides for scripted / headless runs,
+# which have no picker and must be told.
+#
+# disc_crc is the data track's CRC32 (IEEE), the same digest
+# DiscIdentity computes: for .cue/.bin it is the whole .bin, and for a
+# .chd it is the decoded raw sectors, so one value covers every accepted
+# format. This is the gate that refuses a PAL / Japanese / Greatest Hits
+# dump, whose code this build was not recompiled from.
+# Matches [prepare_disc] known_md5 / known_sha1 / known_sizes below.
+disc_crc = "73E4C771"
+load_address = "0x80010000"
+entry_pc = "0x800129D8"
+text_size = "0x001D0000"
+stack_base = "0x801FFFF0"
+
+# Digests are for data Track 01 (first BINARY FILE / TRACK 01).
+[prepare_disc]
+out_dir = "disc"
+bin_name = "Yu-Gi-Oh! Forbidden Memories (USA).bin"
+cue_name = "Yu-Gi-Oh! Forbidden Memories (USA).cue"
+boot_exe = "SLUS_014.11"
+known_sizes = [517872768]
+known_md5 = [
+  "c20bcde742e15c82d09bda1d6c6d62f2",
+]
+known_sha1 = [
+  "d5785a41900a10968d4a28a390666c4b9879b796",
+]
+
+[recompiler]
+seeds = "seeds/ghidra_funcs.txt"
+out_dir = "generated"
+strict = true
+
+# Trusted game-mod entry hooks. Each address here makes the recompiler emit a
+# psx_mod_function_entry() call at that function's entry, which is the only
+# mod hook that survives a RELEASE build (debug_server_log_call_entry is
+# compiled out under PSX_NO_DEBUG_TOOLS).
+#
+# Changing this LIST is the only thing that needs a regenerate; the plugin
+# callbacks themselves live in runtime source and rebuild in ~a minute. So the
+# list is deliberately wider than today's single feature — all three are
+# verified call sites on the duel-reward path, and all three are cold (once per
+# duel end / per card), so hooking them costs nothing at runtime.
+#
+# 0x80021810  drop ROLL. table = 0x8017878C + tier*1460, roll = rng()&0x7FF+1,
+#             walks 722 cumulative n-in-2048 weights, returns card id. Tier
+#             0/1/2 is the rank bracket; the table is per-opponent, so calling
+#             this again re-rolls from the correct pool for free.
+# 0x80021894  AWARD one copy: increments the byte at 0x801D024F + card_id
+#             (cap 251). a0 = card id.
+# 0x800218F0  duel RESULTS routine: computes the tier, calls the roll, stashes
+#             the card at PSX_RANK_RESULT+60 (0x80179A14), then awards it.
+# 0x800323F8  chest DISPLAY-LIST builder: expands the 16-slot New!-ring at
+#             0x801D07BC into the per-card flag byte at 0x8010606A + card_id
+#             (clearing each byte first at 0x800324B4), which drives both the
+#             chest's New! label and its sort-to-top. Hooked so CARD DROPS can
+#             mark every card from the last duel New!, not just the ring's 16.
+# 0x80032C48  the builder's sort/insert body (jal'd at 0x800325DC/0x80032708),
+#             where the flag bytes are consumed. Hooked as the injection point
+#             for the extended New! overlay: at its first call the builder's
+#             clear + ring pass are done and nothing has been read yet. Chosen
+#             over NOPing the clear because patching guest text diverges the
+#             builder to the dirty-RAM interpreter, which skips entry hooks.
+mod_function_entry_funcs = [
+    "0x80021810",
+    "0x80021894",
+    "0x800218F0",
+    "0x800323F8",
+    "0x80032C48",
+    # ---- CARD DROPS results page -------------------------------------------
+    # 0x80021480  page-apply. Called as func_80021480((s8)RESULT[55]) right
+    #             after the stock nav clamps the page, so it is the one place a
+    #             4-page cycle can be reinstated without touching guest code
+    #             (see ISSUES / the dirty-RAM note: patching the two wrap
+    #             immediates inside func_800218F0 either diverges it to the
+    #             interpreter and kills every hook here, or gets blessed and
+    #             leaves the native body running the old constant).
+    "0x80021480",
+    # 0x80037DA4  the text engine. Reads the next byte of a name/label stream
+    #             from a cursor held at obj[obj[88]*4]; hooking its ENTRY is
+    #             what exposes the card-name stream pointer, which is the only
+    #             way to pin the compressed name blob's base address.
+    "0x80037DA4",
+    # 0x80036C14  per-character glyph emitter, func(obj, ch) -> rec[16] = ch.
+    #             Every decoded character of every string passes through here,
+    #             so it reads out a name without decoding the compression.
+    "0x80036C14",
+    # 0x80035AF0  widget text-run setup (glyph cell 8x12, run bounds from the
+    #             table at 0x80090E58) and 0x800393B0 the widget draw/update.
+    #             Listed now because regeneration must be done in ONE pass.
+    "0x80035AF0",
+    "0x800393B0",
+]
+
+[runtime]
+window_title = "Yu-Gi-Oh! Forbidden Memories Recompiled"
+memcard_dir = "saves"
+
+[video]
+renderer = "opengl"
+aspect_ratio = "4:3"
+# Internal render resolution. Required for geometry_correction to be observable
+# at all (at 1x a corrected vertex rounds back to the pixel it started on).
+supersampling = 2
+
+[controller]
+default_mode = "digital"
+
+# Online mount gate: digests + track count + optional TOC fingerprint
+# (see docs/NETPLAY.md).
+[netplay]
+require_cue = true
+required_tracks = 1
+required_disc_fp = "a828d94c24f6df7e040b1164c8ac59eff83f1107c43dba139e3cd5a0127161c4"
