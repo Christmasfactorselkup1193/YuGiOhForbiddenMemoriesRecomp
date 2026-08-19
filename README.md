@@ -97,6 +97,56 @@ original speed until you turn it on; the setting then persists.
 
 ---
 
+## Controls
+
+### Controller
+
+**Xbox controllers work out of the box** — plug one in, no setup. So do PS4 and
+PS5 DualShock/DualSense pads, and Steam's virtual controller if you launch
+through Steam Input. Rumble is supported on DualSense.
+
+The game is a PS1 title, so it starts in **digital** pad mode; the sticks map to
+the d-pad. Nothing needs configuring.
+
+> Very old DirectInput-only pads are the one exception. DirectInput is off by
+> default because enumerating it stalled startup by up to 40 seconds on some
+> machines. If you have such a pad, set `SDL_JOYSTICK_DIRECTINPUT=1` in your
+> environment and it comes back.
+
+### Keyboard
+
+| PlayStation | Key | | PlayStation | Key |
+|---|---|---|---|---|
+| D-pad | Arrow keys | | L1 | `Q` |
+| ✕ Cross | `X` | | R1 | `W` |
+| ○ Circle | `S` | | L2 | `E` |
+| □ Square | `Z` | | R2 | `R` |
+| △ Triangle | `A` | | L3 / R3 | `T` / `Y` |
+| Start | `Enter` | | Select | `Right Shift` |
+
+In this game you mostly need **arrows** to move, **`X`** to confirm, and
+**`S`** to cancel.
+
+### Hotkeys
+
+| Key | Does |
+|---|---|
+| `F10` | Open the overlay menu — every feature on this page lives there |
+| `F7` | Save / load state |
+| `F8` | Rewind |
+| `Tab` | Turbo (hold) |
+| `Alt`+`Enter` or `Ctrl`+`F` | Fullscreen |
+| `F` | Show performance stats |
+| Numpad `+` / `-` | Volume |
+
+### Rebinding
+
+Keys are stored in `keybinds.ini` next to the executable, in plain text with the
+accepted key names listed at the top. Edit it and restart. Each input takes an
+optional second binding after a comma, so `cross = X, Mouse1` binds both.
+
+---
+
 ## First run
 
 The download is a **setup host** — a small executable plus the recompiler and
