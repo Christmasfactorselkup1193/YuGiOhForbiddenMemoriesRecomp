@@ -111,3 +111,7 @@ starvation_dump.jsonl
 /src/psx_rank_sprites.c
 /src/psx_cd_sprites.c
 /src/psx_fusion_font.c
+
+# Junction the setup host creates to the shared portable cmake/clang cache
+# (%LOCALAPPDATA%/retcomm/toolchains). Not ours and not shippable.
+/toolchain
