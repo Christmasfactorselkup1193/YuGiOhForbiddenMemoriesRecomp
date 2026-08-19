@@ -23,6 +23,7 @@
 #include "psx_video_menu.h"
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
