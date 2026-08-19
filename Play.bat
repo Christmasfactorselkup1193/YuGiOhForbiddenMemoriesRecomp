@@ -1,12 +1,11 @@
 @echo off
 REM ---------------------------------------------------------------------------
 REM Yu-Gi-Oh! Forbidden Memories - Recompiled
-REM
-REM SDL_JOYSTICK_DIRECTINPUT=0 is REQUIRED on this machine. Without it the
-REM process hangs during SDL joystick init inside DirectInput HID enumeration
-REM (SDL_DINPUT_JoystickDetect -> HidD_GetProductString -> DeviceIoControl)
-REM and never reaches the emulation loop - it looks like a dead black window.
-REM XInput and RAWINPUT still provide controller support, so nothing is lost.
+REM Launches the way a player does. Do NOT reintroduce SDL_JOYSTICK_DIRECTINPUT=0
+REM here: the DirectInput HID-enumeration hang it used to work around is fixed in
+REM the runtime itself, and launching behind that variable tests a configuration
+REM nobody actually runs - which is how a 42-second startup stall once reached a
+REM release candidate. If startup ever stalls again, fix the runtime, not this.
 REM
 REM Usage:   Play.bat          normal (Release build)
 REM          Play.bat -dbg     instrumented build, TCP debug server on port 4370
@@ -14,7 +13,6 @@ REM ---------------------------------------------------------------------------
 
 setlocal
 
-set "SDL_JOYSTICK_DIRECTINPUT=0"
 set "EXE=Yu_Gi_Oh_Forbidden_Memories_Recompiled.exe"
 
 if /I "%~1"=="-dbg" (

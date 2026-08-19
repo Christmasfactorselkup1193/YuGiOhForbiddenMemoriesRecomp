@@ -16,7 +16,6 @@ REM ---------------------------------------------------------------------------
 
 setlocal
 
-set "SDL_JOYSTICK_DIRECTINPUT=0"
 set "PSX_FRAME_INTERPOLATION=1"
 set "PSX_FRAME_INTERPOLATION_FPS=240"
 set "EXE=Yu_Gi_Oh_Forbidden_Memories_Recompiled.exe"

@@ -1,6 +1,9 @@
 @echo off
 REM ---------------------------------------------------------------------------
 REM Yu-Gi-Oh! Forbidden Memories - Recompiled  (DEBUG BUILD)
+REM Do NOT reintroduce SDL_JOYSTICK_DIRECTINPUT=0 here - see the note in Play.bat.
+REM The DirectInput hang is fixed in the runtime; testing behind the workaround
+REM hides regressions in the real startup path.
 REM
 REM Same game as Play.bat, but built with PSX_DEBUG_TOOLS=ON, which adds the
 REM TCP debug server on 127.0.0.1:4370. That is what lets memory scanning,
@@ -9,13 +12,10 @@ REM
 REM This window stays open and shows the runtime's log, so leave it visible if
 REM something misbehaves - the last lines usually say why.
 REM
-REM SDL_JOYSTICK_DIRECTINPUT=0 is REQUIRED on this machine: without it the
-REM process hangs in DirectInput HID enumeration before reaching the game.
 REM ---------------------------------------------------------------------------
 
 setlocal
 
-set "SDL_JOYSTICK_DIRECTINPUT=0"
 set "EXE=Yu_Gi_Oh_Forbidden_Memories_Recompiled.exe"
 set "GAMEDIR=%~dp0build-dbg"
 
