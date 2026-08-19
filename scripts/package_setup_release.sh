@@ -39,11 +39,15 @@ chmod +x "${PACKAGER}" 2>/dev/null || true
 #   assets/   the app icon CMakeLists names. A missing icon does NOT fail the
 #             build, so omitting it ships the wrong icon with no error at all.
 #   game_options.toml (added conditionally below)
-#             omitting it silently drops "menu fast loading = instant", i.e.
-#             the accelerated loads, with nothing in the log to say why. Found
-#             by diffing a cold install's boot log against a dev build's --
-#             past paths and a first-run keybinds write, any missing line is
-#             a feature the release lost.
+#             the native in-game OPTION persistence declaration. Today it is
+#             an all-commented template declaring nothing, so shipping it
+#             changes no behaviour -- it is here because it is a tracked
+#             project file a source build expects, not because anything
+#             breaks without it. (An earlier version of this comment said
+#             omitting it dropped "fast loading = instant". That was wrong:
+#             fast loading is a menu setting in the runtime's own
+#             menu_settings.ini, it defaults to OFF, and it has nothing to
+#             do with this file.)
 #
 # launcher_assets/ is gone: it is boxart for recomp-ui, and this project has
 # no launcher.

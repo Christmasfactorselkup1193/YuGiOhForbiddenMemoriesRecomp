@@ -90,8 +90,10 @@ so a cheat you tried once cannot quietly clobber a later save.
 
 ### From the runtime
 
-Also available, courtesy of PSXRecomp: save states, rewind (`F8`), and
-near-instant load times.
+Also in the `F10` menu, courtesy of PSXRecomp: save states, rewind (`F8`), an
+emulation-speed multiplier, and **`GAME → FAST LOADING`** — which cuts the
+disc loads to near-instant. That one ships **off**, so the game loads at
+original speed until you turn it on; the setting then persists.
 
 ---
 
