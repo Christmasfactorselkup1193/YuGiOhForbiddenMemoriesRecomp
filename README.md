@@ -104,16 +104,25 @@ the framework source. It has no game code in it until you supply a disc.
 2. It asks for your disc image and checks it against the CRC32 of the data track
    this build expects. A mismatch is **refused**, naming the release it needs
    and the one you gave it.
-3. It translates the game to C from your copy, downloads a portable
-   cmake/clang toolchain if you have no compiler, and builds. This takes a
-   while and only ever happens once.
+3. It downloads a compiler if you have none, translates the game to C from your
+   copy, and compiles it.
 4. It builds into `build-release/` and starts the game.
-
-Every later run of that same executable goes straight to `build-release/` and
-launches immediately.
 
 You need **Python 3** installed. Everything else the setup fetches or brings
 with it.
+
+> ### ⏳ The first run takes a few minutes — let it finish
+>
+> A compiler download, a whole game translated to C, and a real compile all
+> happen before you see anything. A console window will sit there working; that
+> is it doing its job, not hanging. **Every run after the first starts
+> immediately.**
+>
+> **That wait is the entire point.** This download contains no game code and no
+> game assets — not the executable, not the sprites, not even the font. All of
+> it is produced on your machine, from the disc you already own, and never
+> leaves it. Shipping a ready-made build would mean shipping Konami's work;
+> doing it this way means nobody does.
 
 ### Which dump
 
