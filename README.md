@@ -110,8 +110,8 @@ the framework source. It has no game code in it until you supply a disc.
    copy, and compiles it.
 4. It builds into `build-release/` and starts the game.
 
-You need **Python 3** installed. Everything else the setup fetches or brings
-with it.
+Nothing needs installing first. The setup brings its own compiler and its own
+Python; if you already have them they are used instead.
 
 > ### ⏳ The first run takes a few minutes — let it finish
 >
