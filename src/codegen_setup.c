@@ -1,0 +1,71 @@
+/* codegen_setup.c — this title's configuration for the setup host.
+ *
+ * The download is a setup exe plus the recompiler SDK and the framework source;
+ * it carries no Konami code and no Konami assets. On first run the player
+ * points it at their own disc, it generates the C from that disc, builds into
+ * build-release/, and every later run forwards straight there.
+ *
+ * Everything below is identity and paths. The flow itself is the framework's:
+ * the runtime asks for the disc with the picker and acceptance gate it already
+ * owns, then calls the two entry points here. Wired only when the build opts
+ * into -DPSX_SETUP_HOST=ON, and compiled out entirely once generated/ exists —
+ * a product build has nothing to set up.
+ */
+
+#if defined(PSX_HAS_SETUP_HOST) && !defined(PSX_HAS_GAME_DISPATCH)
+
+#include <stddef.h>
+
+#include "psxrecomp_codegen_host.h"
+
+static const PsxrecompCodegenHostConfig kCodegenConfig = {
+    /* .display_name          */ "Yu-Gi-Oh! Forbidden Memories",
+    /* .project_root_env      */ "YGOFM_PROJECT_ROOT",
+    /* .build_dir_env         */ "YGOFM_BUILD_DIR",
+    /* .force_setup_env       */ "YGOFM_FORCE_SETUP",
+    /* .psxrecomp_cli_relpath */ "psxrecomp/psxrecomp_cli.py",
+    /* .seed_cfg_relpath      */ "game.toml",
+    /* .game_toml_relpath     */ "game.toml",
+    /* .gen_marker_relpath    */ "generated/SLUS_014.11_dispatch.c",
+    /* .build_dir_name        */ "build-release",
+    /* .cmake_target          */ "psx-runtime",
+    /* .exe_basename          */ "Yu_Gi_Oh_Forbidden_Memories_Recompiled",
+    /* .prepare_note          */
+    "Uses your own disc with the local psxrecomp SDK to generate BIOS + game "
+    "C, then cmake --build. The game lives under build-release/; opening this "
+    "setup exe again starts it from there.",
+    /* .prepare_note_windows  */
+    "Uses your own disc with the local psxrecomp SDK to generate BIOS + game "
+    "C, then quits and builds in a helper console, because Windows will not "
+    "relink an executable that is running. Afterwards this setup exe forwards "
+    "to build-release/.",
+    /* .prepare_note_no_cmake */
+    "Uses your own disc with the local psxrecomp SDK to generate BIOS + game "
+    "C. No build tools were found, so build into build-release/ yourself and "
+    "then reopen this setup exe.",
+};
+
+int psx_game_codegen_setup_init(void) {
+    return psxrecomp_codegen_host_init(&kCodegenConfig);
+}
+
+/* No progress callback: this build has no window yet and no launcher to draw
+ * one in. The host's own steps already report to stderr, which is where a
+ * console setup run is being watched. */
+int psx_game_codegen_generate_and_build(const char *disc_path, char *out_exe,
+                                        unsigned long out_cap, char *err_msg,
+                                        unsigned long err_cap) {
+    return psxrecomp_codegen_host_generate_and_build(
+        disc_path, out_exe, (size_t)out_cap, err_msg, (size_t)err_cap,
+        NULL, NULL);
+}
+
+void psx_game_codegen_relaunch_or_exit(const char *disc_path) {
+    psxrecomp_codegen_host_relaunch_or_exit(disc_path);
+}
+
+void psx_game_codegen_forward_if_built(int argc, char **argv) {
+    psxrecomp_codegen_host_forward_if_built(&kCodegenConfig, argc, argv);
+}
+
+#endif /* PSX_HAS_SETUP_HOST && !PSX_HAS_GAME_DISPATCH */

@@ -14,65 +14,118 @@ set(PSX_RECOMP_UI OFF CACHE BOOL
 # if(EXISTS "${PSXRECOMP_ROOT}/lib/recomp-net/CMakeLists.txt")
 #     set(PSX_NETPLAY ON CACHE BOOL "..." FORCE)
 # endif()
-# First-run setup wizard -- enable after testing:
+# First-run setup wizard -- recomp-ui's modal. Not used: this project has no
+# recomp-ui, and the wizard is the only thing in the setup host that needed it.
 # set(PSX_SETUP_WIZARD ON CACHE BOOL "..." FORCE)
+#
+# The launcher-less first run instead. The setup exe asks for the player's disc
+# with the runtime's own picker, generates the C from it, builds into
+# build-release/ and forwards there on every later run -- so the download can
+# carry the SDK and the framework source and no Konami code or assets at all.
+# See src/codegen_setup.c, which compiles to nothing once generated/ exists.
+set(PSX_SETUP_HOST ON CACHE BOOL
+    "Launcher-less first-run generate + rebuild" FORCE)
 include("${PSXRECOMP_ROOT}/runtime/runtime.cmake")
 
-# Everything specific to Yu-Gi-Oh! Forbidden Memories lives here, not in the
-# framework: the fusion assistant, the duel-rank meter, card drops and the
-# cheats. They register themselves at static-init time through mod_plugins.h
-# constructors, the overlay menu's row API and psx_game_hooks, so the runtime
-# never names them and no other title compiles them.
-file(GLOB YGOFM_GAME_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
-
-# --- Konami artwork is BUILD OUTPUT, not source ----------------------------
-# Three sources are the game's own art -- the duel-rank badges and letters, the
-# CARD DROPS "New!" label, and the game's text font. They are derived from the
-# disc exactly the way generated/ is derived from the EXE, so like generated/
-# they are gitignored and rebuilt from the PLAYER'S disc. Nothing Konami-derived
-# is committed or shipped.
+# --- What this title adds, and when ----------------------------------------
+# Two different products come out of this one CMakeLists:
 #
-# The disc is found the same way the runtime finds it, so the ordinary dev loop
-# needs no new flag: an explicit -DYGOFM_DISC wins, otherwise the disc this
-# build directory already verified is reused. With neither, configure FAILS --
-# a build that quietly produced a runtime with no art would look like a broken
-# feature rather than a missing input.
-if(NOT YGOFM_DISC AND EXISTS "${CMAKE_BINARY_DIR}/disc_verified.cfg")
-    file(STRINGS "${CMAKE_BINARY_DIR}/disc_verified.cfg" _YGOFM_DISC_CFG
-         REGEX "^path=")
-    if(_YGOFM_DISC_CFG)
-        string(REGEX REPLACE "^path=" "" YGOFM_DISC "${_YGOFM_DISC_CFG}")
+#   the SETUP HOST -- no generated/ yet. It links no game C, so it has nothing
+#   to add features to and no reason to want the game's art. All it needs is
+#   its own configuration, and it must NOT ask for a disc at configure time:
+#   asking the player for one is the whole job it is built to do.
+#
+#   the GAME -- generated/ present. Everything below.
+#
+# Detected the same way the framework detects it, so the two cannot disagree.
+set(YGOFM_GEN_MARKER
+    "${CMAKE_CURRENT_SOURCE_DIR}/generated/SLUS_014.11_dispatch.c")
+set(YGOFM_HAS_GAME_C FALSE)
+if(EXISTS "${YGOFM_GEN_MARKER}" AND NOT PSXRECOMP_FORCE_SETUP_HOST)
+    set(YGOFM_HAS_GAME_C TRUE)
+endif()
+
+# Compiled either way. Guarded internally so it is empty in the game build.
+set(YGOFM_GAME_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/codegen_setup.c")
+
+if(YGOFM_HAS_GAME_C)
+    # Everything specific to Yu-Gi-Oh! Forbidden Memories lives here, not in
+    # the framework: the fusion assistant, the duel-rank meter, card drops and
+    # the cheats. They register themselves at static-init time through
+    # mod_plugins.h constructors, the overlay menu's row API, the debug-command
+    # API and psx_game_hooks, so the runtime never names them and no other
+    # title compiles them.
+    file(GLOB YGOFM_FEATURE_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
+    list(REMOVE_ITEM YGOFM_FEATURE_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/codegen_setup.c")
+    list(APPEND YGOFM_GAME_SOURCES ${YGOFM_FEATURE_SOURCES})
+
+    # --- Konami artwork is BUILD OUTPUT, not source ------------------------
+    # Three sources are the game's own art -- the duel-rank badges and letters,
+    # the CARD DROPS "New!" label, and the game's text font. They are derived
+    # from the disc exactly the way generated/ is derived from the EXE, so like
+    # generated/ they are gitignored and rebuilt from the PLAYER'S disc.
+    # Nothing Konami-derived is committed or shipped.
+    #
+    # The disc is found the way the runtime finds it, so the ordinary dev loop
+    # needs no new flag: an explicit -DYGOFM_DISC wins, then the disc this
+    # build directory already verified, then the one the setup host recorded
+    # beside the executable. With none of them, configure FAILS -- a build that
+    # quietly produced a runtime with no art would look like a broken feature
+    # rather than a missing input.
+    if(NOT YGOFM_DISC)
+        foreach(_ygofm_cfg
+                "${CMAKE_BINARY_DIR}/disc_verified.cfg"
+                "${CMAKE_CURRENT_SOURCE_DIR}/disc.cfg")
+            if(NOT YGOFM_DISC AND EXISTS "${_ygofm_cfg}")
+                file(STRINGS "${_ygofm_cfg}" _ygofm_lines)
+                foreach(_ygofm_line IN LISTS _ygofm_lines)
+                    if(NOT YGOFM_DISC AND _ygofm_line MATCHES "^path=")
+                        string(REGEX REPLACE "^path=" "" YGOFM_DISC
+                               "${_ygofm_line}")
+                    elseif(NOT YGOFM_DISC AND EXISTS "${_ygofm_line}")
+                        # Bare-path form: disc.cfg as the runtime writes it.
+                        set(YGOFM_DISC "${_ygofm_line}")
+                    endif()
+                endforeach()
+            endif()
+        endforeach()
     endif()
-endif()
-if(NOT YGOFM_DISC OR NOT EXISTS "${YGOFM_DISC}")
-    message(FATAL_ERROR
-        "No disc image. The rank sprites, the New! label and the game font are "
-        "baked from your own copy of the disc and are not distributed.\n"
-        "Pass -DYGOFM_DISC=<path to the .bin>, or run the setup host, which "
-        "asks for it once and remembers it.")
-endif()
-message(STATUS "ygofm: baking sprites/font from ${YGOFM_DISC}")
+    if(NOT YGOFM_DISC OR NOT EXISTS "${YGOFM_DISC}")
+        message(FATAL_ERROR
+            "No disc image. The rank sprites, the New! label and the game font "
+            "are baked from your own copy of the disc and are not "
+            "distributed.\n"
+            "Pass -DYGOFM_DISC=<path to the .bin>, or run the setup host, "
+            "which asks for it once and remembers it.")
+    endif()
+    message(STATUS "ygofm: baking sprites/font from ${YGOFM_DISC}")
 
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
-set(YGOFM_ART_DIR "${CMAKE_BINARY_DIR}/game-assets")
-set(YGOFM_ART_SOURCES
-    "${YGOFM_ART_DIR}/psx_rank_sprites.c"
-    "${YGOFM_ART_DIR}/psx_cd_sprites.c"
-    "${YGOFM_ART_DIR}/psx_fusion_font.c")
-add_custom_command(
-    OUTPUT ${YGOFM_ART_SOURCES}
-    COMMAND ${Python3_EXECUTABLE}
-            "${CMAKE_CURRENT_SOURCE_DIR}/tools/disc_assets.py"
-            "${YGOFM_DISC}" "${YGOFM_ART_DIR}"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/disc_assets.py"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tools/sprite_extract.py"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tools/font_extract.py"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tools/sprite_spec.json"
-    COMMENT "Baking sprites and font from the disc"
-    VERBATIM)
-list(APPEND YGOFM_GAME_SOURCES ${YGOFM_ART_SOURCES})
+    set(YGOFM_ART_DIR "${CMAKE_BINARY_DIR}/game-assets")
+    set(YGOFM_ART_SOURCES
+        "${YGOFM_ART_DIR}/psx_rank_sprites.c"
+        "${YGOFM_ART_DIR}/psx_cd_sprites.c"
+        "${YGOFM_ART_DIR}/psx_fusion_font.c")
+    add_custom_command(
+        OUTPUT ${YGOFM_ART_SOURCES}
+        COMMAND ${Python3_EXECUTABLE}
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/disc_assets.py"
+                "${YGOFM_DISC}" "${YGOFM_ART_DIR}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/disc_assets.py"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/sprite_extract.py"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/font_extract.py"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/sprite_spec.json"
+        COMMENT "Baking sprites and font from the disc"
+        VERBATIM)
+    list(APPEND YGOFM_GAME_SOURCES ${YGOFM_ART_SOURCES})
+else()
+    message(STATUS
+        "ygofm: setup host — no game C, so no game features and no art")
+endif()
+
 
 psxrecomp_add_game_runtime(psx-runtime
     # ENABLE_NETPLAY_IF_PRESENT
