@@ -179,10 +179,16 @@ Both `generated/` and the game's baked sprite and font sources are produced from
 [NOTICE](NOTICE).
 
 Because the artwork is baked at build time, CMake needs to know where your disc
-is. It uses `-DYGOFM_DISC=<path>` if you pass one, otherwise the disc this build
-directory already verified, otherwise the one recorded beside the executable. If
-it finds none, configuring stops with a message rather than quietly producing a
-runtime with no art.
+is. Running `generate` first (as above) is enough — it prepares a working copy
+under `disc/` and CMake finds it there. Failing that it looks, in order, at
+`-DYGOFM_DISC=<path>` if you pass one, the disc this build directory already
+verified, and the one recorded beside the executable. If it finds none,
+configuring stops with a message rather than quietly producing a runtime with
+no art:
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DYGOFM_DISC=/path/to/your.bin
+```
 
 For a debug build with the TCP inspection server on `127.0.0.1:4370`, add
 `-DPSX_DEBUG_TOOLS=ON`.

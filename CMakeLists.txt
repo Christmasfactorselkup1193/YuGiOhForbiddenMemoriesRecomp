@@ -92,6 +92,16 @@ if(YGOFM_HAS_GAME_C)
             endif()
         endforeach()
     endif()
+    # Last resort: the working copy `psxrecomp_cli.py generate` prepares under
+    # disc/. It runs before cmake in every documented build order, so this is
+    # what makes the README's own sequence work with no extra flag -- without
+    # it, following those instructions verbatim dies at the configure step.
+    if(NOT YGOFM_DISC)
+        file(GLOB _ygofm_prepared "${CMAKE_CURRENT_SOURCE_DIR}/disc/*.bin")
+        if(_ygofm_prepared)
+            list(GET _ygofm_prepared 0 YGOFM_DISC)
+        endif()
+    endif()
     if(NOT YGOFM_DISC OR NOT EXISTS "${YGOFM_DISC}")
         message(FATAL_ERROR
             "No disc image. The rank sprites, the New! label and the game font "
