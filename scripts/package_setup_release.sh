@@ -25,6 +25,28 @@ if [[ ! -f "${PACKAGER}" ]]; then
 fi
 chmod +x "${PACKAGER}" 2>/dev/null || true
 
+# What the PLAYER'S build needs, beyond the obvious. Getting this list wrong
+# does not fail the packaging step -- it produces a zip that unpacks and then
+# breaks partway through the player's build, or builds a game quietly missing
+# a feature. Both happened while this was being worked out:
+#
+#   src/      the title's sources, INCLUDING codegen_setup.c, which moved here
+#             from the repo root. The three baked art sources are absent by
+#             design -- tools/disc_assets.py remakes them from the disc.
+#   tools/    disc_assets.py plus the two decoders it drives and
+#             sprite_spec.json. Without them the product build cannot bake its
+#             art and will not even configure.
+#   assets/   the app icon CMakeLists names. A missing icon does NOT fail the
+#             build, so omitting it ships the wrong icon with no error at all.
+#   game_options.toml (added conditionally below)
+#             omitting it silently drops "menu fast loading = instant", i.e.
+#             the accelerated loads, with nothing in the log to say why. Found
+#             by diffing a cold install's boot log against a dev build's --
+#             past paths and a first-run keybinds write, any missing line is
+#             a feature the release lost.
+#
+# launcher_assets/ is gone: it is boxart for recomp-ui, and this project has
+# no launcher.
 EXTRA_PROJECT=()
 if [[ -f "${ROOT}/catalog_identity.json" ]]; then
   EXTRA_PROJECT+=(--project-file catalog_identity.json)
@@ -51,9 +73,11 @@ exec bash "${PACKAGER}" \
   --project-file CMakeLists.txt \
   --project-file game.toml \
   --project-file VERSION \
-  --project-file codegen_setup.c \
-  --project-file codegen_setup.h \
   --project-file README.md \
+  --project-file LICENSE \
+  --project-file NOTICE \
+  --project-dir src \
+  --project-dir tools \
   --project-dir seeds \
-  --project-dir launcher_assets \
+  --project-dir assets \
   "${EXTRA_PROJECT[@]}"
