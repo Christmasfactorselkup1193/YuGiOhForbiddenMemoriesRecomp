@@ -18,6 +18,14 @@ set(PSX_RECOMP_UI OFF CACHE BOOL
 # set(PSX_SETUP_WIZARD ON CACHE BOOL "..." FORCE)
 include("${PSXRECOMP_ROOT}/runtime/runtime.cmake")
 
+# Everything specific to Yu-Gi-Oh! Forbidden Memories lives here, not in the
+# framework: the fusion assistant, the duel-rank meter, card drops and the
+# cheats. They register themselves at static-init time through mod_plugins.h
+# constructors, the overlay menu's row API and psx_game_hooks, so the runtime
+# never names them and no other title compiles them.
+file(GLOB YGOFM_GAME_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
+
 psxrecomp_add_game_runtime(psx-runtime
     # ENABLE_NETPLAY_IF_PRESENT
     # NETPLAY_LOBBY_URL ws://netplay.retcomm.net:8765
@@ -29,8 +37,11 @@ psxrecomp_add_game_runtime(psx-runtime
     APP_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/psxrecomp.ico"
     GEN_MARKER "generated/SLUS_014.11_dispatch.c"
     GEN_FULL_GLOB "generated/SLUS_014.11_full_*.c"
-    # CODEGEN_SETUP_SOURCES -- add with recomp-ui / wizard later
+    CODEGEN_SETUP_SOURCES ${YGOFM_GAME_SOURCES}
 )
+
+# The game's own headers sit beside its sources.
+target_include_directories(psx-runtime PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 # Stage runtime configs next to the exe for direct build/ launches. Only copy
 # files that exist — never fail when game_options.toml is absent.
