@@ -1,6 +1,11 @@
 # Release notes
 
-## 0.2.3
+## 0.2.4
+
+> **About 0.2.3:** it was published and withdrawn within about five minutes and
+> was not stable — its launch-time update check silently disabled itself. If
+> you happened to grab it, replace it with this build. Everything below applies
+> to 0.2.4, and 0.2.3 is best treated as never having shipped.
 
 **Read this if you are updating from 0.2.2 or earlier — it affects your saves.**
 
