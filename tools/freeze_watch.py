@@ -75,18 +75,37 @@ def save_state_copy(outdir):
 
     Slots are a fixed pool of 12 and the runtime reuses them, so a capture that
     only points at a slot number is one savestate away from being lost.
+
+    Two things this deliberately does NOT do, both learned the hard way:
+
+    * It does not guess the savestate directory. States live in the
+      player-data dir, while a stale pre-migration copy sits in
+      saves/openbios/ beside the project and reads perfectly plausibly. Ask
+      the runtime (`savestate op=path`) instead of assuming.
+    * It does not trust the save's "ok". The request is staged and serviced on
+      the emu thread, so the ack says nothing about the file. Require the
+      mtime to actually move, or a stale file gets copied out and reported as
+      a fresh capture -- which is exactly how this returned a false pass once.
     """
-    import glob
     import shutil
-    q({'cmd': 'savestate', 'op': 'save', 'slot': SCRATCH_SLOT})
-    time.sleep(2.0)   # request_save is serviced on the emu thread
-    saves = os.path.join(HERE, '..', 'saves', 'openbios')
-    hits = glob.glob(os.path.join(saves, '*slot%02d.pst' % SCRATCH_SLOT))
-    if not hits:
+    info = q({'cmd': 'savestate', 'op': 'path', 'slot': SCRATCH_SLOT})
+    src = info.get('path')
+    if not src:
         return None
+    before = os.path.getmtime(src) if os.path.exists(src) else None
+
+    q({'cmd': 'savestate', 'op': 'save', 'slot': SCRATCH_SLOT})
+    for _ in range(20):
+        time.sleep(0.5)
+        if os.path.exists(src) and os.path.getmtime(src) != before:
+            break
+    else:
+        print('savestate never landed (%s unchanged) — RAM dumps only' % src)
+        return None
+
     dst = os.path.join(outdir, 'frozen_state.pst')
-    shutil.copyfile(hits[0], dst)
-    thumb = hits[0][:-4] + '.thumb'
+    shutil.copyfile(src, dst)
+    thumb = src[:-4] + '.thumb'
     if os.path.exists(thumb):
         shutil.copyfile(thumb, os.path.join(outdir, 'frozen_state.thumb'))
     return dst

@@ -91,6 +91,11 @@ starvation_dump.jsonl
 # guest memory, i.e. game data. Useful locally, not shippable.
 /bugs/
 
+# Investigation captures: savestates, screenshot bursts and RAM dumps
+# written by tools/opp_watch.py and friends. Findings live locally,
+# same as /bugs/.
+/captures/
+
 # Working notes. Session handoffs and an open-bug scratchpad read as
 # in-progress and are not what a release repo should lead with.
 /HANDOFF.md
