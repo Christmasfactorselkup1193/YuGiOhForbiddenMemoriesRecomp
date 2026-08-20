@@ -82,13 +82,28 @@ tag — the game's own label — on anything you didn't already own.
 | Row | Range | Notes |
 |---|---|---|
 | `LIFE POINTS` | 1–9999 | 8000 is stock. Applies to both duellists |
+| `SHOW OPPONENT HAND` | on / off | their hand is drawn face-up, like yours |
+| `FORCE FACE UP` | on / off | their set cards play face-up — and stay face-up |
 | `STARCHIPS` | 0–99999 | written straight to your save |
 | `FREE SPENDING` | on / off | purchases succeed, the deduction is undone |
 | `ALL CARDS` | 1, 2 or 3 of each | fills the trunk. Apply with the chest closed |
 
-`LIFE POINTS` is a preference and is restored on every launch. The other three
-are live writes to save data and are deliberately *not* re-applied at startup,
-so a cheat you tried once cannot quietly clobber a later save.
+`SHOW OPPONENT HAND` is not an overlay: the game already knows how to draw the
+opponent's hand the same way it draws yours, and one flag in the duel state is
+all that keeps it face-down. Clearing it gives you their real card sprites,
+names and ATK/DEF, in the game's own renderer, un-greyed.
+
+`FORCE FACE UP` clears the face-down bit on the opponent's cards, in their
+hand and on their field. That bit is real game state, not just a drawing
+choice — the battle code reads it too — so a monster revealed this way is
+genuinely face-up and will not flip when you attack it. It stays in defense
+position if that is how it was set. Switching the row back off stops new cards
+being revealed; it does not re-hide cards already turned over.
+
+`LIFE POINTS`, `SHOW OPPONENT HAND` and `FORCE FACE UP` are preferences and are
+restored on every launch. The other three are live writes to save data and are
+deliberately *not* re-applied at startup, so a cheat you tried once cannot
+quietly clobber a later save.
 
 ### From the runtime
 

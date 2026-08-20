@@ -1,207 +1,160 @@
-# Next session — reveal the opponent's hand, natively
+# Reveal the opponent's hand — SOLVED (2026-08-20)
 
-Paste this into a fresh session. **Read `psxrecomp/CLAUDE.md` first** — rule 3
-(no printf; every observable is a TCP debug command) and rule 4 (never edit
-`generated/`) are absolute.
+Shipped as **`CHEATS → SHOW OPPONENT HAND`**. Implementation and the full
+address reasoning live in the comment block in
+[src/psx_ygo_cheats.c](src/psx_ygo_cheats.c) (`--- SHOW OPPONENT HAND ---`).
 
-This is a separate thread from the duel soft-lock (`NEXT_SESSION_PROMPT.md` +
-`ISSUES.md` ISSUE #1). Nothing here depends on that.
-
----
-
-## THE GOAL
-
-A **toggle cheat that shows the opponent's hand**, drawn the way the player's
-hand is drawn. The user's words: *"instead of them being grayed out, they will
-show the card sprites like the player hand does."* They explicitly chose the
-**native** route over an overlay — it must look like the game drew it.
-
-They also note some duelists may have "secret hands" past the initial five.
-Unproven either way; see below.
+This file used to be a hunt brief. Keeping the brief would send the next
+session after a problem that does not exist, so it now records the answer
+instead.
 
 ---
 
-## ESTABLISHED — do not re-derive any of this
+## The answer
 
-### The opponent's hand is already readable
+The game already draws the opponent's hand exactly the way it draws yours.
+**One signed byte decides face-up or face-down**, and nothing else was needed —
+no VRAM staging, no emitted primitives, no overlay.
 
-The duel keeps **15 card records per side**, stride 28, from `0x801A7AE4`:
+    0x800E9FF0   player   duellist struct, 0x20 bytes
+    0x800EA010   opponent duellist struct, 0x20 bytes
+    +0x1F        SIGNED "keep this hand face down" flag
+                 => the opponent's copy is 0x800EA02F
+
+Negative hides, zero (or any non-negative) shows. Duel init seeds both structs
+from one global at `0x8001767C`–`0x80017690`, then overwrites the opponent's
+copy with `-1` for a CPU opponent:
+
+    0x800176A8  li  $v0, -1
+    0x800176AC  sb  $v0, -0x5FD1($v1)      ; $v1 = 0x800F0000  =>  0x800EA02F
+
+This is the flag the well-known `300EA02F 0000` GameShark code clears — the
+user supplied that code, and it is what cracked this open.
+
+### Where it is read — three sites, all display
+
+| PC | Function | Effect when the flag is negative |
+|---|---|---|
+| `0x80017DF0` / `0x80017E20` | `func_80017DB4` | writes **255** — the card-back graphic index — to display byte `+103` instead of the card's real artwork index |
+| `0x80018058` | `func_80018004` | same, single-card path |
+| `0x800232C0` | `func_80023144` | leaves the card on its dimmed tint (tint byte `0x8009B34E`) |
+
+The third one is the "grayed out" in the original request: clearing the flag
+un-greys them as well as turning the backs into real cards.
+
+`0x80017DF8` is `beq $v0,$zero` and `0x80017E28` is `bgez $v0` — hence *signed*,
+and hence 0 is the value to write.
+
+### Why it must be per frame
+
+A block copy at `0x8007431C` rewrites `+0x1A..+0x1F` as a unit. Measured over a
+full traced opponent turn (`wtrace` on `0x800E9FF0..0x800EA030`): exactly one
+such write per turn. A one-shot write would be undone, so the guard runs in the
+existing per-frame `psx_ygo_cheats_tick()` and only ever replaces a **negative**
+value — a duel the game itself chose to show face-up is never touched.
+
+---
+
+## Corrections to the old brief
+
+- **The opponent's card art is already available to the renderer.** The old
+  brief assumed no art was staged for them and planned to build a second VRAM
+  strip. Not so: with the flag cleared, their cards draw with correct, distinct
+  artwork immediately. The opponent's struct even carries the same per-slot
+  bytes the player's does (`+0x1A..+0x1E`: opponent `28 2a 2c 2f ff` against
+  player `12 13 14 15 16`).
+- **The `v=192 -> 128` swirl was a dead end for the right reason** — but the
+  reason is not "the art was never staged", it is that the backing texture is
+  the whole sprite and the reveal is a decision taken *upstream*, in the display
+  builder, not in the packet.
+- **"Secret hands"**: the duel reserves five hand records per side (15–19) and
+  five per-slot bytes in the duellist struct, so the structures hold at most
+  five. With the row on, whatever a duellist is actually holding is on screen —
+  that is now the cheapest way to settle it, by watching.
+
+---
+
+## Harness
+
+`python tools/opp_watch.py --replay 0` still works and is still the way to
+catch an opponent turn: slot 0 is a state saved at the player's turn end, Start
+hands the turn over ~1.4 s later, and the opponent's turn runs ~11–12 s.
+
+The tooling gotchas from the old brief all still apply — active-low `press`,
+savestates in the player-data dir, `savestate op=save` acking before it writes,
+`pause`/`step` removed by design. `rtrace` is **MMIO only**; it cannot trace a
+RAM read, so a reader hunt goes through the generated C, not the runtime.
+
+---
+
+# Force face-up — SOLVED (2026-08-20)
+
+Shipped as **`CHEATS → FORCE FACE UP`**, same file. A second GameShark pair the
+user supplied:
+
+    5000051C 0000      ; repeat the next line 5 times, address += 0x1C
+    301A7C93 0080      ; write byte 0x80 to 0x801A7C93
+
+`0x1C` is 28 — the card-record stride — so this is `0x80` into offset **+11** of
+records **15–19** (the opponent's hand). +10 is the flags halfword, so +11 is
+its high byte.
+
+## The record array, settled
+
+Base `0x801A7AE4`, stride 28:
 
 | records | owner |
 |---|---|
 | 0–4 | player hand |
 | 5–14 | player field |
-| **15–19** | **opponent hand** |
+| 15–19 | opponent hand |
 | 20–29 | opponent field |
 
-Record layout: `+0` id, `+2` atk, `+4` def, `+6` equip-bonus accumulator,
-`+10` flags. Flags `0x8000` = LIVE, `0x0400` = FIELD, **`0x2000` = OPPONENT**.
+Confirmed live rather than assumed: the opponent's drawn card appeared in record
+19 and was then copied into record 20 as it was played. **flags == 0 means an
+empty slot** — the id left in the record is stale, which is what makes a swept
+field look occupied.
 
-Cross-validated on two independent specimens (a duel savestate and a live
-Simon duel). Reading their hand is a solved problem — the whole difficulty is
-*display*.
+## Flags vocabulary (halfword at +10)
 
-**Secret hands:** in the Simon duel records 15–19 held exactly five cards and
-record 20 onward was field, so he held five. The array only reserves five hand
-slots per side, so if some duelists hold more they must do it by another
-mechanism. Do not assume either way; catch one in the act.
+| bit | meaning | evidence |
+|---|---|---|
+| `0x8000` | in hand | cleared as the card lands on the field |
+| `0x4000` | draw dimmed | display+12 colour word `0x00404040` vs `0x00808080` (`0x80017EE0`) |
+| `0x2000` | artwork index forced to 0 | `0x80017E5C`; set by `0x80018030` |
+| `0x1000` | **face down** | `0x80017EA0`, `0x800180C0`, `0x8001EA20`, and the battle flip at `0x8001E700` |
+| `0x0800` | defense position | display+34 = 192 (`0x80017EBC`) |
+| `0x0400` | on the field | appears as a card is placed |
 
-### How a hand card is actually drawn
+`0x1000` is **not** display-only. `func_8001D670` reads it at `0x8001E700` —
+that is the routine that flips a set monster when it is attacked. A card
+revealed by clearing it is genuinely face-up and will not flip on attack.
 
-A card is **two** GP0 `0x64` rects. Read straight out of the player's packets:
+## What the cheat does
 
-```
-card 0: 393800A0  00200028   <- ART: clut 0x3938, uv=(160,0), 40x32
-card 1: 38F80078  00200028   <- clut 0x38F8, uv=(120,0)
-card 2: 38B80050  00200028   <- clut 0x38B8, uv=( 80,0)
-card 3: 38780028  00200028   <- clut 0x3878, uv=( 40,0)
-card 4: 38380000  00200028   <- clut 0x3838, uv=(  0,0)
-        ...
-        3C508000  003C0034   <- BACKING: 52x60, uv=(0,128), identical on all five
-```
+It is **prophylactic, not a reveal**. `func_8001BD8C` ORs `0x1000` in as the AI
+puts a card down (`0x8001C3A8`, `0x8001CCE4`), inheriting it from the hand
+record. Pre-clearing the hand record means the card is placed face-up.
 
-So: **40x32 artwork rect** (per-card CLUT, `u = slot*40`) **+ 52x60 backing**.
-The artwork is indexed by **hand slot, not card id** — the game stages the five
-hand images into a VRAM strip, each with its own CLUT.
+Measured on a specimen where the AI was forced to set a monster (Key Mace,
+id 192, savestate slot 2):
 
-The opponent's packets contain **only the backing**, at `v=192`. There is no
-art rect because no art was staged for them.
+| | field record 20 |
+|---|---|
+| stock | `0x9800` — face-down, defense |
+| cheat on | `0x8800` — face-up, still defense |
 
-Both hands are drawn at the same screen positions: y=146, x = 14/74/134/194/254,
-same CLUT `0x3C50`, same texpage `0x029E`. The only difference in the backing
-is `v`: **128 = face, 192 = back**.
+Clearing an **already-placed** field record works too, but only shows once
+something rebuilds the view, so the shipped row sweeps records 15–29 every frame.
 
-### It is ONE routine, not two
+## Why the shipped row clears the BIT, not the byte
 
-Player faces and opponent backs are both written by
-**`pc=0x80084B10`, `ra=0x80042208`** — mode **1** of a 6-entry jump table at
-`0x80010520`, dispatched on `(a3>>16)`:
+GameShark can only write a byte, so `0080` stomps `0x4000/0x2000/0x1000/0x0800`
+together. On a hand record that is harmless. On a **field** record it also
+clears `0x0800` — measured: `0x9800 -> 0x8000` — which silently flips a
+defending monster into attack position. That is a real state change, not a
+cosmetic one, so the row clears only `0x1000`.
 
-```
-[0] 0x800427AC  [1] 0x800421F8  [2] 0x80042210
-[3] 0x80042228  [4] 0x80042240  [5] 0x80042378
-```
-
-Mode 1's block at `0x800421F8` calls the sprite builder with
-`a0 = s2`, `a1 = word[sp+96]`, `a2 = s8 & 0xFFFF`. So face vs back is a
-**parameter to a shared path**, which is the good news.
-
-Packet pools: player hand `0x000A5AD0` (stride 0x108), opponent
-`0x000C7A50` (stride 0x18).
-
-### Proven NOT to work — do not retry
-
-**Flipping the backing `v` from 192 to 128 does not reveal a card.** Tested
-live by patching the texcoord word in a loop while the backs were on screen:
-the card turned into a generic **swirl**, because the backing texture is all
-there is — nothing is layered on it. A reveal must ADD the art rect, not
-redirect the backing.
-
-Also dead ends, with reasons:
-- `func_800170C8` is the **field** stat-display pass (600 calls, all records
-  5–8), not the hand renderer.
-- `gpu_frame_dump`'s `func` attribution is always `0x000029CC` — the kernel DMA
-  routine (interpreted install-at-runtime code, CLAUDE.md rule 18). Useless for
-  finding game code. Use the entry's `src` (packet address) and write-trace it.
-- Per-card **texpage** is not the selector; all cards use `0x029E`.
-
----
-
-## THE NEXT TASK
-
-**Find the routine that stages a card's image + CLUT into VRAM for a hand
-slot.** Everything else is cheap once that exists.
-
-Then, in order:
-
-1. Call it for records 15–19 into a **second** VRAM strip (do not clobber the
-   player's — theirs is live at `u = slot*40` with CLUTs `0x3838 + slot*0x40`).
-2. Emit the 40x32 art rect per opponent card, pointing at the new strip.
-3. Flip their backing `v` 192 -> 128.
-4. Put it behind a toggle. Check how the existing cheats/mods are gated
-   (`src/psx_ygo_debug.c` registers the fusion commands; the fusion overlay has
-   a tune/enable command) and follow that pattern.
-
-Hints for step 0: no `0xA0` (CPU→VRAM) op appears in the frame dumps, so the
-upload is likely a **DMA** rather than a GP0 command — look at DMA channel 2
-(GPU) activity when the hand changes, not per frame. A hand only re-stages when
-it changes, so trace across a draw/play rather than a steady frame.
-
----
-
-## THE HARNESS (already built — use it)
-
-The opponent plays on its own and the window is far too fast to catch by hand.
-`pause`/`step` were removed from the debug server by design.
-
-**Specimen:** the user saved a state at their turn end. Internal **slot 0**
-(the F7 UI numbers slots +1, so it is "save state 1" in the menu).
-
-```bash
-python tools/opp_watch.py --replay 0
-```
-
-Loads the slot, presses Start correctly, waits for the turn to flip, saves a
-savestate of the moment, then burst-captures screenshots plus the opponent's
-records for the whole turn into `captures/opponent-turn-<stamp>/`.
-`captures/` is gitignored.
-
-Sequence timings from this session: turn flips ~1.4 s after Start; the
-opponent's turn runs ~11–12 s; the player's hand view returns after that.
-To reach the **player's hand** for comparison: load slot 0, Start, wait for
-`turn` to go back to 0, settle ~1.5 s.
-
-Useful reads: `fusion_hand` (records + ids), `gpu_frame_dump frame=N`
-(`gpu_ring_stats` gives `newest_frame`), `wtrace_arm/reset/dump`.
-
----
-
-## TOOLING GOTCHAS — these cost real time this session
-
-- **`press` takes the RAW pad word and the PSX pad is ACTIVE LOW.** Idle is
-  `0xFFFF`; a PRESSED button is a **zero** bit. `buttons` is NOT a "press
-  these" mask — `0x0008` means *every button except Start* and mashes the whole
-  d-pad. **Start = `0xFFF7`**, Cross `0xBFFF`, Up `0xFFEF`. Build words by
-  clearing bits out of `0xFFFF` (see the `PAD_*` table in `tools/opp_watch.py`).
-  Any earlier "input changed nothing" conclusion drawn with the mask form is
-  worthless.
-- **Savestates and `menu_settings.ini` live in the PLAYER-DATA directory**
-  (`Documents\My Games\<title>\`), not beside the exe. `saves/openbios/` and
-  `build*/menu_settings.ini` are stale pre-migration copies that nothing reads
-  and that read plausibly enough to fool you — this invalidated a
-  cross-validation pass and silently changed the user's fast-loading setting.
-  **Ask the runtime:** `savestate op=path slot=N` returns the directory and the
-  exact file.
-- **`savestate op=save` acks BEFORE it writes** (staged onto the emu thread).
-  `ok:true` says nothing about the file. Record the mtime and require it to
-  move, or you will copy a stale slot and report a fresh capture.
-- **Runtime setter commands can persist to the player's real config.**
-  `fast_loads level=N` writes `menu_settings.ini`. Treat setters as config
-  changes, not probes, and restore anything you flip.
-- **`pause` / `step` / `continue` are removed** by design — query a ring buffer
-  over the window of interest instead.
-- **Bash working directory silently resets to `C:\dev` mid-session.** Use
-  absolute paths.
-- **Killing the game to relink ends the user's duel.** Ask before rebuilding if
-  they are playing.
-
----
-
-## BUILD / ENVIRONMENT
-
-```
-cmake --build build-dbg -j     # debug + TCP debug server on 4370
-cmake --build build -j         # release (no debug server)
-```
-
-- `C:\msys64\mingw64\bin` FIRST on PATH, and `export USERPROFILE` from Bash or
-  ccache aborts.
-- **Kill the exe before building** ("Permission denied" at link = the code was
-  fine).
-- Play the **debug** build (`PlayDebug.bat`) for any of this — the release
-  build has no debug server.
-- The tree is mixed CRLF/LF; `psx_video_menu.c` is bare-LF with an embedded
-  NUL. Patch scripts must detect line endings **per file** and be written to a
-  FILE, never a heredoc.
-- The fusion assistant lives in `src/psx_fusion_*.c` (main repo);
-  `psxrecomp/` is a submodule on branch `ygofm`, pinned from the main repo.
+The row is one-way by design: switching it off stops clearing, it does not put
+`0x1000` back. Re-hiding a card the battle code has already resolved as face-up
+would desync display from logic.
