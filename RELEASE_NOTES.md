@@ -6,40 +6,35 @@ Extract this over your existing install as usual. Your saves live in
 `Documents\My Games\Yu-Gi-Oh Forbidden Memories Recompiled` from 0.2.3 onward,
 so nothing this update writes can reach them.
 
+### Updates now actually rebuild
+
+**If your install folder has brackets in its name — `ygofm-0.2.5-win-x64(1)`,
+which is what your browser makes the second time you download the same zip —
+every update so far has silently done nothing.** You would extract the new
+version, launch it, watch it generate, and still be playing the old build. No
+error, anywhere.
+
+The updater hands off to a rebuild step that has to run after the game exits.
+That handoff lost the folder path at the first bracket, so the rebuild never
+started. Fixed. A `&` in the folder name broke it the same way.
+
+If you are on a broken install right now, this release repairs it — extract it
+over the top and launch it once. It will rebuild, and that first launch takes a
+few minutes.
+
 ### Two new cheats — `CHEATS`
 
-**`SHOW OPPONENT HAND`.** See what the computer is holding. This is not an
-overlay drawn on top of the game: the duel already knows how to draw the
-opponent's hand exactly the way it draws yours, and a single flag is all that
-keeps it face down. Turning the row on clears that flag, so you get their real
-card art, names and ATK/DEF, in the game's own renderer, un-greyed.
+**`SHOW OPPONENT HAND`.** See what the CPU is holding.
 
 **`FORCE FACE UP`.** The computer sets cards face down constantly and you are
 meant to guess. With this on, anything it sets plays face up instead — and
 cards already sitting face down on its field turn over too, the next time the
 view redraws.
 
-Worth knowing before you switch it on: this one changes the duel, not just the
-picture. A monster revealed this way genuinely *is* face up, so it will not
-flip when you attack it. It stays in defense position if that is how it was
-set. Switching the row back off stops new cards being revealed; it does not
-re-hide anything already turned over.
+### Fusion Assistant
 
-Both are preferences, not save writes, so they persist across launches and
-cannot damage your save.
-
-### Fusion assistant: equips are worth what they add
-
-An equip scored zero. The hint ranked each line by the printed stats of the
-*result* card, and in an equip chain the result is still the base monster — so
-a two-card line and a three-card line scored identically, and the tie-break
-preferred the shorter one. With two Blue-Eyes plus Dragon Treasure and
-Megamorph in hand, the assistant offered Blue-Eyes and one equip and threw away
-the play that actually wins the turn.
-
-It now carries the running bonus through the chain, so `NUMBERS + INFO` reports
-what the summon will really put on the field. That hand now reads 4500/4000,
-which is what the game produces when you play it.
+Equips are worth what they add. Equips such as 'Megamorph' weren't being
+properly considered, fixed.
 
 ### `VIDEO → WINDOWED SCALE` is a slider
 
@@ -49,17 +44,7 @@ anywhere on it, or type a value.
 
 ### Disc timing: a stability fix
 
-Fast and instant loading were compressing the completion of Stop, MotorOn and
-Seek as well as the sector cadence. A completion delivered inside the frame
-that issued it can be missed by the game's disc queue, which then never pumps
-again. Those three commands now always complete at hardware pace. Load times
-are unaffected — that win comes from sector cadence, which is untouched, and
-measures the same before and after.
-
-Related: the README no longer advises keeping `FAST LOADING` off. That advice
-went up while the rare duel soft-lock had fast loading as an open suspect; a
-full start-to-finish playthrough on instant loading at 3x speed has since run
-without a freeze.
+Duels would occasionally freeze while fast loading was set to INSTANT, fixed.
 
 ## 0.2.4
 
