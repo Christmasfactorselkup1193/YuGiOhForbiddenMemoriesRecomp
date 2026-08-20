@@ -258,6 +258,34 @@ int psx_fusion_db_stats(uint16_t id, int *atk, int *def, int *type)
     return 1;
 }
 
+/* ---- what an equip is worth ----------------------------------------------
+ *
+ * Traced at 0x8001A7F8, not taken from a FAQ. The summon path stores a flat
+ * 500 into the target's bonus field, then overrides it to 1000 for Megamorph
+ * (id 657) alone:
+ *
+ *     8001A7F8  li   v0, 500
+ *     8001A800  sh   v0, 42(s1)
+ *     8001A814  lh   v1, 766(gp)      the equip's card id
+ *     8001A818  li   v0, 657          Megamorph
+ *     8001A81C  bne  v1, v0 -> skip   anything else keeps 500
+ *     8001A828  sh   v1, 42(s1)       ...Megamorph stores 1000
+ *
+ * There is no per-equip bonus in the card table to read instead: every equip's
+ * stats word is byte-identical (0x5C000000 -- atk 0, def 0, type 23), so this
+ * two-case rule is the whole of it.
+ *
+ * The bonus lands on ATTACK AND DEFENCE ALIKE, and successive equips ADD into
+ * one accumulator at card-record +6. Verified in a live duel: Blue-Eyes White
+ * Dragon (3000/2500) fused with Dragon Treasure and Megamorph came out
+ * 4500/4000, with that field reading 1500 = 500 + 1000. */
+#define PSX_FUSION_MEGAMORPH_ID 657u
+
+int psx_fusion_db_equip_bonus(uint16_t equip_id)
+{
+    return equip_id == PSX_FUSION_MEGAMORPH_ID ? 1000 : 500;
+}
+
 void psx_fusion_db_debug(int *ready, uint32_t *pair_base, uint32_t *equip_base,
                          int *cards_with_fusions, int *pairs,
                          int *equip_groups, int *equip_members)

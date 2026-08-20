@@ -54,6 +54,10 @@ uint16_t psx_fusion_db_result(uint16_t first, uint16_t second, int *out_kind);
  * pointer may be NULL. */
 int psx_fusion_db_stats(uint16_t id, int *atk, int *def, int *type);
 
+/* What an equip is worth, in the game's own numbers. Applies to ATTACK AND
+ * DEFENCE alike, and successive equips ADD. See psx_fusion_db.c. */
+int psx_fusion_db_equip_bonus(uint16_t equip_id);
+
 /* ---- debug-server surface ---------------------------------------------- */
 
 /* Table geometry and the validation verdict, for `fusion_db`. Any pointer may

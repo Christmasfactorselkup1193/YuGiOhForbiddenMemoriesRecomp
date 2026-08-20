@@ -206,6 +206,21 @@ int psx_fusion_assist_hand_json(char *out, unsigned cap)
     return (int)p;
 }
 
+/* What a pair actually lands on. An equip pair keeps the monster and adds the
+ * equip's bonus to attack and defence alike, so reporting the monster's
+ * printed line alone understates it by 500 -- 1000 for Megamorph. */
+static void pair_stats(uint16_t a, uint16_t b, uint16_t result, int kind,
+                       int *atk, int *def, int *type)
+{
+    int bonus = 0;
+    if (kind == PSX_FUSION_EQUIP)
+        bonus = psx_fusion_db_equip_bonus((result == a) ? b : a);
+    int at = 0, df = 0;
+    psx_fusion_db_stats(result, &at, &df, type);
+    if (atk) *atk = at ? at + bonus : at;
+    if (def) *def = df ? df + bonus : df;
+}
+
 int psx_fusion_assist_list_json(char *out, unsigned cap)
 {
     if (!out || cap < 256u) return 0;
@@ -242,11 +257,12 @@ int psx_fusion_assist_list_json(char *out, unsigned cap)
     for (int a = 1; a < nhits; a++) {
         Hit v = hits[a];
         int va = 0, vd = 0;
-        psx_fusion_db_stats(v.result, &va, &vd, NULL);
+        pair_stats(hand[v.i].id, hand[v.j].id, v.result, v.kind, &va, &vd, NULL);
         int b = a - 1;
         for (; b >= 0; b--) {
             int ba = 0, bd = 0;
-            psx_fusion_db_stats(hits[b].result, &ba, &bd, NULL);
+            pair_stats(hand[hits[b].i].id, hand[hits[b].j].id,
+                       hits[b].result, hits[b].kind, &ba, &bd, NULL);
             if (ba > va || (ba == va && bd >= vd)) break;
             hits[b + 1] = hits[b];
         }
@@ -260,7 +276,8 @@ int psx_fusion_assist_list_json(char *out, unsigned cap)
                             psx_fusion_db_ready(), n, nhits);
     for (int k = 0; k < nhits && p + 240u < cap; k++) {
         int atk = 0, def = 0, type = -1;
-        psx_fusion_db_stats(hits[k].result, &atk, &def, &type);
+        pair_stats(hand[hits[k].i].id, hand[hits[k].j].id,
+                   hits[k].result, hits[k].kind, &atk, &def, &type);
         p += (unsigned)snprintf(out + p, cap - p,
                                 "%s{\"a\":%u,\"b\":%u,\"slot_a\":%d,"
                                 "\"slot_b\":%d,\"result\":%u,\"kind\":%d,"
@@ -281,6 +298,43 @@ static uint16_t chain_step(uint16_t carry, uint16_t next, int *out_kind)
 {
     const uint16_t r = psx_fusion_db_result(carry, next, out_kind);
     return r ? r : next;
+}
+
+/* One fold step, tracking the equip bonus alongside the surviving card.
+ *
+ * An equip leaves the monster standing and ADDS to a bonus that applies to
+ * attack and defence alike, so a line's real stats are the surviving card's
+ * printed stats plus everything equipped onto it. Without this the search
+ * scored every equip at zero and line_better's "shorter wins" tie-break threw
+ * the longer, stronger line away.
+ *
+ * A step that produces a DIFFERENT card summons a new one, so the bonus does
+ * not follow: the equips were spent on the card that just got consumed. That
+ * reset is the conservative reading and is NOT yet verified in game -- the
+ * verified case is equips accumulating onto one monster. */
+static uint16_t fold_step(uint16_t carry, uint16_t next, int *bonus,
+                          int *out_kind)
+{
+    int kind = PSX_FUSION_NONE;
+    const uint16_t r = psx_fusion_db_result(carry, next, &kind);
+    if (out_kind) *out_kind = kind;
+    if (kind == PSX_FUSION_EQUIP) {
+        /* The equip is whichever of the two did NOT survive. */
+        const uint16_t worn = (r == carry) ? next : carry;
+        if (bonus) *bonus += psx_fusion_db_equip_bonus(worn);
+        return r;
+    }
+    if (bonus) *bonus = 0;
+    return r ? r : next;
+}
+
+/* Printed stats of `id`, plus everything equipped onto it. */
+static void line_stats(uint16_t id, int bonus, int *atk, int *def)
+{
+    int a = 0, d = 0;
+    psx_fusion_db_stats(id, &a, &d, NULL);
+    if (atk) *atk = a ? a + bonus : a;
+    if (def) *def = d ? d + bonus : d;
 }
 
 int psx_fusion_assist_chain(PsxFusionCard *steps, int cap, uint16_t *out_result)
@@ -338,16 +392,18 @@ int psx_fusion_assist_chain_json(char *out, unsigned cap)
     /* Replay the fold so each step reports the card standing after it — that
      * running value IS what the preview shows as the player picks. */
     uint16_t carry = n ? steps[0].id : 0;
+    int bonus = 0;
     for (int i = 0; i < n && p + 160u < cap; i++) {
         int kind = PSX_FUSION_NONE;
-        if (i) carry = chain_step(carry, steps[i].id, &kind);
+        if (i) carry = fold_step(carry, steps[i].id, &bonus, &kind);
         int atk = 0, def = 0;
-        psx_fusion_db_stats(carry, &atk, &def, NULL);
+        line_stats(carry, bonus, &atk, &def);
         p += (unsigned)snprintf(out + p, cap - p,
                                 "%s{\"slot\":%u,\"id\":%u,\"carry\":%u,"
-                                "\"kind\":%d,\"atk\":%d,\"def\":%d}",
+                                "\"kind\":%d,\"atk\":%d,\"def\":%d,"
+                                "\"bonus\":%d}",
                                 i ? "," : "", steps[i].slot, steps[i].id,
-                                carry, kind, atk, def);
+                                carry, kind, atk, def, bonus);
     }
     p += (unsigned)snprintf(out + p, cap - p, "]");
     return (int)p;
@@ -366,6 +422,7 @@ int psx_fusion_assist_chain_json(char *out, unsigned cap)
  * is evaluated once and extended rather than re-folded per permutation. */
 typedef struct {
     int      atk, def, len;
+    int      bonus;           /* equip bonus folded into atk/def above */
     uint16_t result;
     uint8_t  slot[PSX_FUSION_HAND_MAX];
 } BestLine;
@@ -400,8 +457,8 @@ static int line_better(const BestLine *a, const BestLine *b)
  * A hand with no fusions in it must come back empty, not come back with the
  * biggest card in it dressed up as a suggestion. */
 static void best_search(const PsxFusionCard *hand, int n, uint8_t used,
-                        uint16_t carry, int depth, uint8_t *path, int fused,
-                        BestLine *best)
+                        uint16_t carry, int bonus, int depth, uint8_t *path,
+                        int fused, BestLine *best)
 {
     /* Belt and braces on the recursion depth. `n` cannot exceed the hand size,
      * but that is only provable at the call site, and this writes into a
@@ -411,8 +468,9 @@ static void best_search(const PsxFusionCard *hand, int n, uint8_t used,
         BestLine cand;
         cand.result = carry;
         cand.len = depth;
+        cand.bonus = bonus;
         cand.atk = cand.def = 0;
-        psx_fusion_db_stats(carry, &cand.atk, &cand.def, NULL);
+        line_stats(carry, bonus, &cand.atk, &cand.def);
         for (int i = 0; i < depth; i++) cand.slot[i] = path[i];
         if (line_better(&cand, best)) *best = cand;
     }
@@ -420,11 +478,13 @@ static void best_search(const PsxFusionCard *hand, int n, uint8_t used,
     for (int i = 0; i < n; i++) {
         if (used & (1u << i)) continue;
         int kind = PSX_FUSION_NONE;
-        const uint16_t next = depth ? chain_step(carry, hand[i].id, &kind)
+        int nbonus = bonus;
+        const uint16_t next = depth ? fold_step(carry, hand[i].id, &nbonus, &kind)
                                     : hand[i].id;
+        if (!depth) nbonus = 0;
         path[depth] = hand[i].slot;
-        best_search(hand, n, (uint8_t)(used | (1u << i)), next, depth + 1,
-                    path, fused || kind != PSX_FUSION_NONE, best);
+        best_search(hand, n, (uint8_t)(used | (1u << i)), next, nbonus,
+                    depth + 1, path, fused || kind != PSX_FUSION_NONE, best);
     }
 }
 
@@ -439,7 +499,7 @@ int psx_fusion_assist_best(uint16_t *result, int *atk, int *def, int *cards,
     memset(&best, 0, sizeof best);
     uint8_t path[PSX_FUSION_HAND_MAX];
     if (psx_fusion_db_ready())
-        best_search(hand, n, 0, 0, 0, path, 0, &best);
+        best_search(hand, n, 0, 0, 0, 0, path, 0, &best);
 
     if (result) *result = best.result;
     if (atk)    *atk    = best.atk;
