@@ -137,10 +137,22 @@ else()
 endif()
 
 
+# The release version, read from the VERSION file rather than repeated here.
+# Without this the runtime compiled itself as "dev" while VERSION said 0.2.2,
+# so the binary did not know its own release — which the update check compares
+# against, and which the lobby pin already depended on. One source of truth.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" YGOFM_VERSION)
+string(STRIP "${YGOFM_VERSION}" YGOFM_VERSION)
+message(STATUS "ygofm: version ${YGOFM_VERSION}")
+
 psxrecomp_add_game_runtime(psx-runtime
     # ENABLE_NETPLAY_IF_PRESENT
     # NETPLAY_LOBBY_URL ws://netplay.retcomm.net:8765
     # ENABLE_SETUP_WIZARD
+    GAME_VERSION "${YGOFM_VERSION}"
+    # Checked on every launch for a newer release; the player is prompted and
+    # sent to the page. Comment out to disable the check for the whole build.
+    UPDATE_REPO "Unchiga/YuGiOhForbiddenMemoriesRecomp"
     WINDOW_TITLE "Yu-Gi-Oh Forbidden Memories Recompiled"
     DEFAULT_GAME_CONFIG_PATH "game.toml"
     MAX_PLAYERS 2
