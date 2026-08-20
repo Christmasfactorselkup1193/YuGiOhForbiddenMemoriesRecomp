@@ -1,7 +1,5 @@
 # Yu-Gi-Oh! Forbidden Memories — Recompiled
 
-**For the time being, turn off FAST LOAD for stability, GAME SPEED is fine**
-
 A static recompilation of **Yu-Gi-Oh! Forbidden Memories** (USA, SLUS-01411).
 The game's MIPS code is translated to C ahead of time and compiled into a native
 executable — it is not interpreted by an emulator.
