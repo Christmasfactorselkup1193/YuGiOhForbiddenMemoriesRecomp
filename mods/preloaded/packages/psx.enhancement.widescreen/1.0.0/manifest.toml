@@ -1,0 +1,22 @@
+format_version = 5
+id = "psx.enhancement.widescreen"
+version = "1.0.0"
+name = "Widescreen (experimental)"
+author = "yamyi"
+description = "Stretches to 16:9. Experimental."
+resolver = "declarative"
+save_compatibility = "shared"
+
+[[target]]
+game_id = "SLUS-01411"
+
+[[feature]]
+id = "widescreen"
+name = "Widescreen (experimental)"
+description = "Renders at 16:9 instead of native 4:3."
+group = "Quality of Life"
+default_enabled = false
+
+[[plugin]]
+feature = "widescreen"
+id = "psx.widescreen"
