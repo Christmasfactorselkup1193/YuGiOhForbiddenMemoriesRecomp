@@ -139,7 +139,20 @@ DUEL art and, like every other piece of Konami art here, are **never
 shipped** — instead **your game captures them itself, from its own screen,
 the first time you browse FREE DUEL**. Scroll the opponent list once and the
 Manager fills in for good (they persist next to your saves). A duelist you
-have never met has no portrait anywhere, and keeps a plain plate.
+have never met draws nothing there, so their plate stays plain — unless you
+use `CHEATS → REVEAL ALL PORTRAITS`, which temporarily marks everyone as met
+just long enough for the capture to finish, then **reverts itself**: the
+moment the last portrait is stored, the flags it set are cleared again and
+your save is bit-for-bit what your campaign earned.
+
+### 🖥️ Widescreen — `VIEW → WIDESCREEN` *(experimental)*
+
+16:9, contributed by [yamyi](https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp/pull/1).
+Projected 3D — the duel field — renders genuinely wider; flat 2D screens stay
+4:3 and are pillarboxed rather than stretched. Also available as a mod-catalog
+feature (`psx.enhancement.widescreen`). Experimental, as the framework labels
+this feature class: culling pop-in at the wide edges has not been fully
+checked for this title.
 
 ### 💰 Cheats — `CHEATS`
 
@@ -151,6 +164,7 @@ have never met has no portrait anywhere, and keeps a plain plate.
 | `STARCHIPS` | 0–99999 | written straight to your save |
 | `FREE SPENDING` | on / off | purchases succeed, the deduction is undone |
 | `ALL CARDS` | 1, 2 or 3 of each | fills the trunk. Apply with the chest closed |
+| `REVEAL ALL PORTRAITS` | on / off | shows every FREE DUEL portrait so the Drop Table Manager can capture them — then reverts itself. Does not unlock duels |
 
 Neither reveal is an overlay. `SHOW OPPONENT HAND` clears the one flag that
 keeps their hand hidden, so you get their real sprites, names and ATK/DEF in the

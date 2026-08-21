@@ -265,6 +265,14 @@ const uint32_t *psx_duelist_icon_cache_get(int duelist)
 
 unsigned psx_duelist_icon_cache_generation(void) { return s_gen; }
 
+int psx_duelist_icon_cache_missing(void)
+{
+    load_disk();
+    int missing = 0;
+    for (int d = 0; d < N; d++) missing += !s_have[d];
+    return missing;
+}
+
 int psx_duelist_icon_cache_state_json(char *out, unsigned cap)
 {
     if (!out || cap < 96u) return 0;

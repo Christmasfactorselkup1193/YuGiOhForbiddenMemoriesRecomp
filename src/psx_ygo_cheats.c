@@ -9,6 +9,7 @@
  */
 
 #include "psx_ygo_cheats.h"
+#include "psx_duelist_icon_cache.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -209,10 +210,13 @@ static void force_faceup_tick(void) {
     }
 }
 
+static void reveal_tick(void);     /* defined with REVEAL ALL PORTRAITS */
+
 void psx_ygo_cheats_tick(void) {
     show_opp_hand_tick();
     force_faceup_tick();
     free_spending_tick();
+    reveal_tick();
 }
 
 /* --- LIFE POINTS ---------------------------------------------------------
@@ -341,6 +345,90 @@ static void all_cards_changed(int value) {
     host_osd_push("All cards granted", 1500);
 }
 
+/* --- REVEAL ALL PORTRAITS ------------------------------------------------
+ * The FREE DUEL grid draws a portrait only for a duelist the campaign has
+ * MET: bit 0x80>>(id&7) of save byte +0x418+(id>>3), flag id 0x6E0+duelist
+ * — the flag func_8002CCA8 reads and the screen's roster-build loop (at
+ * 0x801683CC, overlay) consults; the published "all free duel opponents"
+ * GameShark patches that loop's lock branch instead. Setting all 39 makes
+ * every cell render on the next visit to the screen, which is what lets the
+ * Drop Table Manager's portrait capture complete a set the player's
+ * campaign never could — a missed Seto 2nd has no cell to capture.
+ *
+ * DELIBERATELY TEMPORARY. The row remembers exactly which bits it set (only
+ * ones that were clear) and clears them again — by itself the moment the
+ * portrait cache is complete, or when the player turns the row off. The
+ * portraits live in the Manager's own cache file, never in the save, so
+ * after the revert the player's game is bit-for-bit what their campaign
+ * earned. Selectability (who you can actually duel) is gated elsewhere and
+ * is not touched either way.
+ *
+ * Like every save write here it goes to the live struct AND the +0x3000
+ * mirror, and refuses until a save is loaded (ISSUES #5). */
+#define PSX_MEET_FLAGS_OFF 0x418u
+#define PSX_MEET_FIRST_ID  0x6E0u
+
+static int     s_reveal_row = -1;
+static uint8_t s_reveal_set[39];   /* bits WE set (they were clear before) */
+static int     s_reveal_active;
+
+static void reveal_write(int d, int set) {
+    const uint32_t id  = PSX_MEET_FIRST_ID + (uint32_t)d;
+    const uint32_t off = PSX_MEET_FLAGS_OFF + (id >> 3);
+    const uint8_t  bit = (uint8_t)(0x80u >> (id & 7u));
+    uint8_t v = psx_mod_read_byte(PSX_SAVE_LIVE + off);
+    psx_mod_write_byte(PSX_SAVE_LIVE + off,
+                       (uint8_t)(set ? (v | bit) : (v & (uint8_t)~bit)));
+    v = psx_mod_read_byte(PSX_SAVE_MIRROR + off);
+    psx_mod_write_byte(PSX_SAVE_MIRROR + off,
+                       (uint8_t)(set ? (v | bit) : (v & (uint8_t)~bit)));
+}
+
+static int reveal_flag_is_set(int d) {
+    const uint32_t id  = PSX_MEET_FIRST_ID + (uint32_t)d;
+    const uint32_t off = PSX_MEET_FLAGS_OFF + (id >> 3);
+    const uint8_t  bit = (uint8_t)(0x80u >> (id & 7u));
+    return (psx_mod_read_byte(PSX_SAVE_LIVE + off) & bit) != 0;
+}
+
+static void reveal_revert(const char *why) {
+    if (!s_reveal_active) return;
+    s_reveal_active = 0;               /* before set_row: it re-enters at 0 */
+    for (int d = 0; d < 39; d++) {
+        if (s_reveal_set[d]) reveal_write(d, 0);
+        s_reveal_set[d] = 0;
+    }
+    if (s_reveal_row >= 0) psx_video_menu_set_row(s_reveal_row, 0);
+    host_osd_push(why, 2000);
+}
+
+static void reveal_changed(int value) {
+    if (value <= 0) {
+        reveal_revert("Portrait reveal reverted");
+        return;
+    }
+    if (!save_is_live()) { refuse(s_reveal_row, "Reveal portraits"); return; }
+    if (!psx_duelist_icon_cache_missing()) {
+        host_osd_push("Every portrait is already captured", 2000);
+        if (s_reveal_row >= 0) psx_video_menu_set_row(s_reveal_row, 0);
+        return;
+    }
+    for (int d = 0; d < 39; d++) {
+        if (reveal_flag_is_set(d)) continue;
+        reveal_write(d, 1);
+        s_reveal_set[d] = 1;
+    }
+    s_reveal_active = 1;
+    host_osd_push("Portraits revealed - visit FREE DUEL", 2200);
+}
+
+/* Called from this module's frame hook: the reveal takes itself back the
+ * moment the Manager's portrait cache is complete. */
+static void reveal_tick(void) {
+    if (s_reveal_active && !psx_duelist_icon_cache_missing())
+        reveal_revert("All portraits captured - reveal reverted");
+}
+
 /* --- the rows ------------------------------------------------------------ */
 
 static const char *const ONOFF_LABELS[] = { "OFF", "ON" };
@@ -364,6 +452,11 @@ static const char *const OPPHAND_HINTS[] = {
 static const char *const FACEUP_HINTS[] = {
     "THEY MAY SET CARDS FACE DOWN",
     "THEIR SET CARDS PLAY FACE UP - NO FLIP ON ATTACK"
+};
+static const char *const REVEAL_LABELS[] = { "OFF", "ON" };
+static const char *const REVEAL_HINTS[]  = {
+    "SHOW EVERY FREE DUEL PORTRAIT, TEMPORARILY",
+    "REVERTS ITSELF ONCE ALL PORTRAITS ARE CAPTURED"
 };
 
 PSX_MOD_CONSTRUCTOR(psx_ygo_cheats_install) {
@@ -411,4 +504,9 @@ void psx_ygo_cheats_register_menu(void) {
         PSX_VM_MENU_CHEATS, "ALL CARDS", ALLCARDS_HINTS[0],
         ALLCARDS_LABELS, 4, NULL, 0, all_cards_changed);
     psx_video_menu_set_row_hints(s_all_cards_row, ALLCARDS_HINTS);
+
+    s_reveal_row = psx_video_menu_add_option(
+        PSX_VM_MENU_CHEATS, "REVEAL ALL PORTRAITS", REVEAL_HINTS[0],
+        REVEAL_LABELS, 2, NULL, 0, reveal_changed);
+    psx_video_menu_set_row_hints(s_reveal_row, REVEAL_HINTS);
 }

@@ -42,6 +42,10 @@ const uint32_t *psx_duelist_icon_cache_get(int duelist);
  * holding plates knows to redraw. */
 unsigned psx_duelist_icon_cache_generation(void);
 
+/* How many portraits the cache still lacks. The REVEAL ALL PORTRAITS cheat
+ * watches this to revert itself the moment the set is complete. */
+int psx_duelist_icon_cache_missing(void);
+
 /* Debug-server read-back. */
 int psx_duelist_icon_cache_state_json(char *out, unsigned cap);
 

@@ -15,12 +15,27 @@ plain plates everywhere.
 Now **the game captures its own portraits, from its own screen.** Open FREE
 DUEL and move through the opponent list once; every portrait on screen is
 captured as you go, the Manager fills in live if it is open, and the set is
-kept next to your saves (`duelist_icons.bin`) so it is there for good. A
-duelist you have never met draws nothing on that screen, and keeps a plain
-plate — there is genuinely nothing to capture.
+kept next to your saves (`duelist_icons.bin`) so it is there for good.
 
 Nothing changes about what ships: the art comes from your machine, your
 disc, your screen, and never leaves.
+
+**A duelist your campaign never met draws nothing on that screen** — so for
+a complete set there is now `CHEATS → REVEAL ALL PORTRAITS`: it temporarily
+marks everyone as met, and **reverts itself** the moment the last portrait
+is captured (or when you turn it off), restoring the flags it set
+bit-for-bit. Your save ends up exactly as your campaign earned it; the
+portraits live in the Manager's own cache, not in the save. It does not
+unlock anyone to duel.
+
+### New: Widescreen (experimental) — `VIEW → WIDESCREEN`
+
+Contributed by **yamyi** — this project's first outside contribution.
+Projected 3D (the duel field) renders genuinely wider at 16:9; flat 2D
+screens stay 4:3, pillarboxed rather than stretched. Toggle it in the VIEW
+menu or enable the `psx.enhancement.widescreen` mod-catalog feature; the
+toggle reshapes the window live. Experimental: culling pop-in at the wide
+edges has not been fully checked for this title.
 
 ## 0.3.0
 
