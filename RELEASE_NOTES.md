@@ -34,8 +34,23 @@ Contributed by **yamyi** — this project's first outside contribution.
 Projected 3D (the duel field) renders genuinely wider at 16:9; flat 2D
 screens stay 4:3, pillarboxed rather than stretched. Toggle it in the VIEW
 menu or enable the `psx.enhancement.widescreen` mod-catalog feature; the
-toggle reshapes the window live. Experimental: culling pop-in at the wide
-edges has not been fully checked for this title.
+toggle reshapes the window live. Works with both `VIDEO → SCALING` modes:
+FILL WINDOW stretches to fit, INTEGER keeps whole pixels and snaps the
+wide frame to the largest multiple that fits. Overlays that ride the
+duel screen (the rank badge, the fusion hint) stay anchored to the boxes
+they label in wide mode. Experimental: culling pop-in at the wide edges
+has not been fully checked for this title.
+
+### Fixed: first-run build error on machines with the Vulkan SDK
+
+If 0.3.0's first-run setup failed for you with
+`error: use of undeclared identifier 'cpu'` (around main.cpp:13332) and
+`no matching function for call to 'psx_netplay_bind_cpu'`, this release
+fixes it. The CPU state variable was accidentally guarded out of the
+build exactly when a Vulkan SDK was detected on your machine, so setups
+on machines with the LunarG SDK installed could not compile. 0.3.0
+workaround, if you need one before updating: temporarily clear the
+`VULKAN_SDK` environment variable and re-run the setup.
 
 ## 0.3.0
 
