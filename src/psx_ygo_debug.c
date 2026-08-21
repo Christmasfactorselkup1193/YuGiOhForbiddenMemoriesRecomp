@@ -27,6 +27,7 @@
 #include "psx_fusion_db.h"
 #include "psx_fusion_overlay.h"
 #include "psx_ygo_overlays.h"
+#include "psx_drop_missing.h"
 
 /* rank_meter_tune — nudge the duel-rank meter's layout while the game runs.
  * {"cmd":"rank_meter_tune","letter_x":N,"letter_y":N,"gap":N,"dx":N,"dy":N}
@@ -251,6 +252,20 @@ static void handle_fusion_try(int id, const char *json)
     send_fmt("{\"id\":%d,\"ok\":true,%s}", id, body);
 }
 
+/* What DROP MISSING CARDS thinks is going on: whether it loaded the ini, how
+ * many duels it has rewritten, and which duelist it last recognised. Without
+ * this the mod is invisible -- an unrecognised drop table makes it do nothing
+ * on purpose, which looks exactly like the row being off. */
+static void handle_drop_missing_state(int id, const char *json)
+{
+    (void)json;
+    char buf[512];
+    if (!psx_drop_missing_state_json(buf, sizeof(buf))) {
+        send_err(id, "state unavailable"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true,%s}", id, buf);
+}
+
 static void handle_card_drops_state(int id, const char *json)
 {
     (void)json;
@@ -451,6 +466,7 @@ PSX_MOD_CONSTRUCTOR(psx_ygo_debug_install) {
     (void)psx_debug_add_command("rank_meter_state",  handle_rank_meter_state);
     (void)psx_debug_add_command("rank_fade_ring",    handle_rank_fade_ring);
     (void)psx_debug_add_command("card_drops_state",  handle_card_drops_state);
+    (void)psx_debug_add_command("drop_missing_state", handle_drop_missing_state);
     (void)psx_debug_add_command("card_drops_list",   handle_card_drops_list);
     (void)psx_debug_add_command("card_drops_p3",     handle_card_drops_p3);
     (void)psx_debug_add_command("card_drops_set",    handle_card_drops_set);

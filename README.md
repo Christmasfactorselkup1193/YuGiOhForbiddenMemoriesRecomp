@@ -75,6 +75,33 @@ It comes with a results screen that stock never had: the cards you won, listed
 across three pages you flip with **D-pad Left/Right**, with a yellow **New!**
 tag — the game's own label — on anything you didn't already own.
 
+### 🃏 Drop missing cards — `MODS → DROP MISSING CARDS`
+
+**82 of the game's 722 cards are dropped by nobody.** Both of Exodia's legs are
+among them, which is why the set cannot be completed by duelling in the stock
+game. This gives every one of them a source.
+
+Nothing on your disc is touched. The duel loads the current opponent's drop
+weights into memory and this rewrites that copy, so the game rolls its own
+tables and the change lasts exactly as long as the duel does.
+
+The placement is yours to change. On first run the mod writes
+`drop_missing_cards.ini` next to your saves, listing every card by name under
+the duelist that drops it:
+
+```ini
+[Weevil Underwood]
+52  =  30,  20,   0   ; Hercules Beetle
+278 =  30,  20,   0   ; Petit Moth
+```
+
+The three numbers are the S/A POW, B/C/D and S/A TEC rates, as weights out of
+2048 — 20 is about 1%. Delete the file to get the defaults back.
+
+Every rank band always totals 2048, so whatever you add is taken off that
+duelist's normal drops in proportion. The shipped table adds about 1–6% per
+duelist, which you will not notice; adding hundreds would gut their pool.
+
 ### 💰 Cheats — `CHEATS`
 
 | Row | Range | Notes |
