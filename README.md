@@ -357,3 +357,6 @@ game, which is Konami's — use only a disc image and BIOS you obtained legally.
 
 Read [NOTICE](NOTICE) before redistributing anything — particularly before
 sharing a *compiled build*, which is not the same as sharing this repository.
+
+## How to Help
+Join our newly created Discord, https://discord.gg/SR8qWG9Ve
