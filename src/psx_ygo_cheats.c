@@ -198,16 +198,25 @@ static void free_spending_changed(int value) {
     host_osd_push(g_free_spending ? "Free spending: on" : "Free spending: off", 900);
 }
 
-/* The tick does the guest write, so this only moves the switch — which also
- * makes the row safe to restore from the settings file before a game runs. */
+/* The tick does the guest writes, so these only move a switch.
+ *
+ * The toast is for a player who just moved the row, not for the settings file.
+ * `psx_video_menu_apply_restored()` replays on_change for every restored row as
+ * the game starts, so an unguarded toast greets every launch with a setting
+ * nobody touched — "Their cards: face up" on startup, even when the restored
+ * value was OFF and nothing had changed. psx_video_menu_is_restoring() is set
+ * only during that replay, which is the one thing a callback cannot otherwise
+ * tell about its own caller. */
 static void show_opp_hand_changed(int value) {
     g_show_opp_hand = value ? 1 : 0;
+    if (psx_video_menu_is_restoring()) return;
     host_osd_push(g_show_opp_hand ? "Opponent's hand: shown"
                                   : "Opponent's hand: hidden", 900);
 }
 
 static void force_faceup_changed(int value) {
     g_force_faceup = value ? 1 : 0;
+    if (psx_video_menu_is_restoring()) return;
     host_osd_push(g_force_faceup ? "Their cards: face up"
                                  : "Their cards: as dealt", 900);
 }
