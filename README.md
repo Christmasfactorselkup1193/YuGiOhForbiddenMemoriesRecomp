@@ -86,8 +86,14 @@ weights into memory and this rewrites that copy, so the game rolls its own
 tables and the change lasts exactly as long as the duel does.
 
 The placement is yours to change. On first run the mod writes
-`drop_missing_cards.ini` next to your saves, listing every card by name under
-the duelist that drops it:
+**`drop_missing_cards.ini`** into your player-data folder — the same place your
+memory cards and save states live:
+
+```
+Documents\My Games\Yu-Gi-Oh Forbidden Memories Recompiled```
+
+(or next to the game, if you run it portable). It lists every card by name
+under the duelist that drops it:
 
 ```ini
 [Weevil Underwood]

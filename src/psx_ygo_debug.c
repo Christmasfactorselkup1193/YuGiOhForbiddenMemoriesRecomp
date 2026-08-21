@@ -105,6 +105,24 @@ static void handle_rank_meter_state(int id, const char *json)
 /* card_drops_test tier=N — drive ONE nested drop roll and report what the
  * guest call produced. Lets the guest-call path be validated without winning a
  * duel first. */
+/* WARNING - these two run GUEST code re-entrantly and can wedge the emulator.
+ *
+ * Sweeping card_drops_test back to back stops the emulator dead after roughly
+ * 9-13 calls: everything except the io-thread ping times out. The same sweep
+ * with ~20 ms between calls ran 120 clean, so PACE IT. Not fixed, and the two
+ * obvious fixes are already ruled out, so do not spend the time again:
+ *
+ *   - It is not frame starvation. A per-frame call budget never fired at all;
+ *     a whole frame completes between commands anyway.
+ *   - It is not "we interrupted the BIOS". Refusing unless
+ *     g_debug_current_func_addr is in game text never fired either.
+ *
+ * What IS known: the freeze dump puts the guest at last_store_pc 0xBFC21B04,
+ * inside the BIOS, with cpu->pc 0. The nested call keeps its device effects on
+ * purpose (trunk writes, RNG advance) and that includes interrupt and event
+ * state, so the likely mechanism is a BIOS wait stranded on an event the
+ * nested call consumed. Proving that needs the event/IRQ state captured across
+ * a nested call, which is the next step whenever this is picked up. */
 static void handle_card_drops_test(int id, const char *json)
 {
     extern int psx_card_drops_test_roll(CPUState *, int, int, uint32_t *,

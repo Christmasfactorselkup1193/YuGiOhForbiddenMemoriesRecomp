@@ -64,6 +64,7 @@ static int  g_applied     = 0;      /* duels rewritten this session */
 static int  g_last_duelist = -1;
 static int      g_throttle = 0;     /* frames until the next check */
 static char g_status[128] = "not started";
+static char g_ini_path[1024] = "";
 static uint32_t g_last_fp = 0;      /* observability: last fingerprint seen */
 static int  g_matched = -1;         /* duelist it resolved to, -1 = none */
 static int  g_tier_ok[3] = { -1, -1, -1 };  /* per-tier apply result */
@@ -279,6 +280,7 @@ static void ensure_loaded(void)
     load_defaults();
     char path[1024];
     ini_path(path, sizeof(path));
+    snprintf(g_ini_path, sizeof(g_ini_path), "%s", path);
     FILE *probe = fopen(path, "r");
     if (probe) {
         fclose(probe);
@@ -288,6 +290,7 @@ static void ensure_loaded(void)
     } else {
         write_ini(path);
         snprintf(g_status, sizeof(g_status), "wrote %s, using defaults", INI_NAME);
+        host_osd_push("Drop table written: " INI_NAME, 3500);
     }
 }
 
@@ -350,7 +353,7 @@ int psx_drop_missing_state_json(char *out, unsigned cap)
 static const char *const ONOFF[]  = { "OFF", "ON" };
 static const char *const HINTS[] = {
     "THE 82 CARDS NOBODY DROPS STAY UNOBTAINABLE",
-    "EVERY CARD HAS A SOURCE - EDIT THE INI TO RETUNE"
+    "EDIT DROP_MISSING_CARDS.INI BY YOUR SAVES TO RETUNE"
 };
 
 static void enabled_changed(int value)
