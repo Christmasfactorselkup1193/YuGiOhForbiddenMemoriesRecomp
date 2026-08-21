@@ -20,13 +20,10 @@ kept next to your saves (`duelist_icons.bin`) so it is there for good.
 Nothing changes about what ships: the art comes from your machine, your
 disc, your screen, and never leaves.
 
-**A duelist your campaign never met draws nothing on that screen** — so for
-a complete set there is now `CHEATS → REVEAL ALL PORTRAITS`: it temporarily
-marks everyone as met, and **reverts itself** the moment the last portrait
-is captured (or when you turn it off), restoring the flags it set
-bit-for-bit. Your save ends up exactly as your campaign earned it; the
-portraits live in the Manager's own cache, not in the save. It does not
-unlock anyone to duel.
+**A duelist your campaign never met draws nothing on that screen**, so
+their plate stays empty until you meet them — the Manager fills in as
+your campaign does. The portraits live in the Manager's own cache, never
+in your save.
 
 ### New: Widescreen (experimental) — `VIEW → WIDESCREEN`
 

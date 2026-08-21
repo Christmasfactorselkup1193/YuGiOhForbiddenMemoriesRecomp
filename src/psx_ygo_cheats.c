@@ -384,12 +384,20 @@ static void reveal_write(int d, int set) {
                        (uint8_t)(set ? (v | bit) : (v & (uint8_t)~bit)));
 }
 
+/* The reveal ROW is a maintainer tool, not a player feature (user call,
+ * 2026-08-21): a player browsing FREE DUEL captures every portrait their
+ * campaign can show, and the full 39 matter only to us when building the
+ * shared portrait set. Player (Release / PSX_NO_DEBUG_TOOLS) builds get no
+ * CHEATS row; dev builds keep it. The tick/revert machinery below stays in
+ * every build so a savestate carrying an armed reveal still reverts. */
+#ifndef PSX_NO_DEBUG_TOOLS
 static int reveal_flag_is_set(int d) {
     const uint32_t id  = PSX_MEET_FIRST_ID + (uint32_t)d;
     const uint32_t off = PSX_MEET_FLAGS_OFF + (id >> 3);
     const uint8_t  bit = (uint8_t)(0x80u >> (id & 7u));
     return (psx_mod_read_byte(PSX_SAVE_LIVE + off) & bit) != 0;
 }
+#endif
 
 static void reveal_revert(const char *why) {
     if (!s_reveal_active) return;
@@ -402,6 +410,7 @@ static void reveal_revert(const char *why) {
     host_osd_push(why, 2000);
 }
 
+#ifndef PSX_NO_DEBUG_TOOLS
 static void reveal_changed(int value) {
     if (value <= 0) {
         reveal_revert("Portrait reveal reverted");
@@ -421,6 +430,7 @@ static void reveal_changed(int value) {
     s_reveal_active = 1;
     host_osd_push("Portraits revealed - visit FREE DUEL", 2200);
 }
+#endif /* !PSX_NO_DEBUG_TOOLS */
 
 /* Called from this module's frame hook: the reveal takes itself back the
  * moment the Manager's portrait cache is complete. */
@@ -453,11 +463,13 @@ static const char *const FACEUP_HINTS[] = {
     "THEY MAY SET CARDS FACE DOWN",
     "THEIR SET CARDS PLAY FACE UP - NO FLIP ON ATTACK"
 };
+#ifndef PSX_NO_DEBUG_TOOLS
 static const char *const REVEAL_LABELS[] = { "OFF", "ON" };
 static const char *const REVEAL_HINTS[]  = {
     "SHOW EVERY FREE DUEL PORTRAIT, TEMPORARILY",
     "REVERTS ITSELF ONCE ALL PORTRAITS ARE CAPTURED"
 };
+#endif
 
 PSX_MOD_CONSTRUCTOR(psx_ygo_cheats_install) {
     psx_ygo_cheats_register_menu();
@@ -505,8 +517,12 @@ void psx_ygo_cheats_register_menu(void) {
         ALLCARDS_LABELS, 4, NULL, 0, all_cards_changed);
     psx_video_menu_set_row_hints(s_all_cards_row, ALLCARDS_HINTS);
 
+#ifndef PSX_NO_DEBUG_TOOLS
+    /* Maintainer-only (see the reveal block above): player builds ship the
+     * CHEATS menu without this row. */
     s_reveal_row = psx_video_menu_add_option(
         PSX_VM_MENU_CHEATS, "REVEAL ALL PORTRAITS", REVEAL_HINTS[0],
         REVEAL_LABELS, 2, NULL, 0, reveal_changed);
     psx_video_menu_set_row_hints(s_reveal_row, REVEAL_HINTS);
+#endif
 }
