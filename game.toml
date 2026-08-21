@@ -119,6 +119,15 @@ aspect_ratio = "4:3"
 # at all (at 1x a corrected vertex rounds back to the pixel it started on).
 supersampling = 2
 
+[widescreen]
+hud_sprt_squash = true
+auto_ui_squash  = true
+gte_game_mode   = true
+
+[widescreen.cull]
+auto_screen_x = true
+auto_backdrop = true
+
 [controller]
 default_mode = "digital"
 
