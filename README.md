@@ -6,8 +6,9 @@ executable — it is not interpreted by an emulator.
 
 On top of that sits a set of quality-of-life features built for this game: a
 live duel-rank meter, a fusion assistant that reads your actual hand, a card-drop
-multiplier with a proper results screen, and a cheat menu. All drawn in the
-game's own art, all toggleable at runtime.
+multiplier with a proper results screen, a full **drop-table manager** in its
+own window — view, edit and share every duelist's drops — and a cheat menu.
+All drawn in the game's own art, all toggleable at runtime.
 
 Built on [PSXRecomp](https://github.com/mstan/psxrecomp).
 
@@ -90,6 +91,54 @@ The three numbers are the S/A POW, B/C/D and S/A TEC rates, as weights out of
 2048 — 20 is about 1%. Each band always totals 2048, so what you add comes off
 that duelist's normal drops in proportion; the shipped table adds 1–6% each.
 Delete the file for the defaults back.
+
+### 🗂️ Drop Table Manager — `VIEW → DROP TABLE MANAGER`
+
+![The Drop Table Manager](docs/screenshots/drop-table-manager.png)
+
+Opens a **separate window** you can move to another monitor and leave open
+while you play. It knows every card and every duelist's drop table — and it
+does not just show them. **You can rewrite any duelist's drops and the game
+rolls what you wrote.**
+
+| View | What you get |
+|---|---|
+| `BY CARD` | all 722 cards — id, name, type, ATK, DEF, how many tables drop it — sortable on any column, with every duelist that drops the selected one, the rank band needed, and the chance |
+| `BY DUELIST` | all 39 duelists, with everything they drop, the band, and the weight both raw and as a percentage |
+
+Type to search by name or id, click a column heading to sort, scroll with the
+wheel or the scrollbars, click a row on the right to cross over into the other
+view. Weights are out of 2048, which is what lets one read as a percentage.
+
+**Editing.** Click a weight and type a new one. Click the rank cell to move a
+drop between bands. Right-click anything for the rest: add a card to a
+duelist, move it, remove it. Or just **drag a card out of the left list and
+drop it on a duelist** — the `ALL CPU` toggle lists every duelist under a
+card, greyed where they do not drop it, so every one of them is a drop target
+without leaving the view. Every band still totals exactly 2048 — whatever you
+add or grow comes off that duelist's other drops in proportion, the same
+arithmetic the game's own roll assumes — and an edit that cannot balance is
+refused, not fudged.
+
+**Nothing is written until you press `SAVE`**, which persists your table as
+`drop_table_edits.ini` in your player-data folder (hand-editable, same format
+as the mod's file). `DEFAULTS` clears the selected duelist back to stock.
+
+**Sharing.** `LOAD → EXPORT CURRENT` writes your table as a timestamped file
+in `drop_tables/` next to your saves — send it to someone, they drop it in
+their own `drop_tables/` folder and pick it from `LOAD`. Loading replaces the
+edit layer in memory only; it too is nothing until saved.
+
+If `DROP MISSING CARDS` is on, the manager shows — and edits on top of — the
+table you will actually roll against: it runs the same transform the mod runs,
+so the two cannot disagree, and your edits apply over the mod's placements.
+
+Card names and ATK/DEF are read out of the running game; the drop tables are
+baked from your disc when you build. Duelist portraits are the game's FREE
+DUEL art and, like every other piece of Konami art here, are **never
+shipped** — a build captures them from your own running game
+(`tools/capture_duelist_icons.py`, debug build), and shows a plain plate
+where it has none.
 
 ### 💰 Cheats — `CHEATS`
 
@@ -271,9 +320,10 @@ build (`PSXRECOMP_FORCE_SETUP_HOST=ON`), not the game.
 [`ygofm`](https://github.com/Unchiga/psxrecomp/tree/ygofm) branch of a fork of
 [PSXRecomp](https://github.com/mstan/psxrecomp), because this project needs
 framework work not upstream yet: the disc-identity gate, registration APIs so a
-title owns its own debug commands and guest-space overlays, a per-vblank game
-hook, and a launcher-less setup host. All additive and intended for upstream;
-the branch exists so this repository builds today.
+title owns its own debug commands and guest-space overlays, per-vblank game and
+SDL-event hooks (how the Drop Table Manager owns its second window), and a
+launcher-less setup host. All additive and intended for upstream; the branch
+exists so this repository builds today.
 
 Symbols: `symbols.toml` → `python3 tools/sync_symbols.py` → `psx_symbols.h`
 (`PSX_FN_*`). See `psxrecomp/docs/SYMBOLS.md`.

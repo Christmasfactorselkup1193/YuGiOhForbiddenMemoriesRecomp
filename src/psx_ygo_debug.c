@@ -27,7 +27,9 @@
 #include "psx_fusion_db.h"
 #include "psx_fusion_overlay.h"
 #include "psx_ygo_overlays.h"
+#include "psx_drop_edits.h"
 #include "psx_drop_missing.h"
+#include "psx_drop_viewer.h"
 
 /* rank_meter_tune — nudge the duel-rank meter's layout while the game runs.
  * {"cmd":"rank_meter_tune","letter_x":N,"letter_y":N,"gap":N,"dx":N,"dy":N}
@@ -284,6 +286,138 @@ static void handle_drop_missing_state(int id, const char *json)
     send_fmt("{\"id\":%d,\"ok\":true,%s}", id, buf);
 }
 
+/* drop_viewer — what the second window is showing. The window is a host
+ * surface with no framebuffer the screenshot commands can reach, so without
+ * this the only way to check it is to photograph the desktop. */
+static void handle_drop_viewer(int id, const char *json)
+{
+    (void)json;
+    char buf[768];
+    if (!psx_drop_viewer_state_json(buf, sizeof(buf))) {
+        send_err(id, "state unavailable"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true,%s}", id, buf);
+}
+
+/* drop_viewer_set — point the window at something, so the two views and the
+ * search can be checked without a mouse. */
+static void handle_drop_viewer_set(int id, const char *json)
+{
+    /* open lands on the main thread next frame — window creation is not this
+     * thread's to do — so an "open":1 with other fields will report "viewer
+     * is closed" for those; send the open alone, then the rest. */
+    const int open = json_get_int(json, "open", -1);
+    if (open >= 0) psx_drop_viewer_request_open(open);
+    char search[32];
+    /* json_get_str returns the string, or NULL when the key is absent — which
+     * is exactly the "leave it alone" the setter wants. */
+    const char *have_search =
+        json_get_str(json, "search", search, sizeof(search));
+    if (!psx_drop_viewer_set(json_get_int(json, "view", -1),
+                             json_get_int(json, "sort", -1),
+                             json_get_int(json, "desc", -1),
+                             json_get_int(json, "card", -1),
+                             json_get_int(json, "duelist", -1),
+                             have_search ? search : NULL)
+        && open < 0) {
+        send_err(id, "viewer is closed"); return;
+    }
+    char buf[768];
+    psx_drop_viewer_state_json(buf, sizeof(buf));
+    send_fmt("{\"id\":%d,\"ok\":true,%s}", id, buf);
+}
+
+/* drop_viewer_click / drop_viewer_move — a mouse press / motion at window
+ * coordinates, pushed through SDL's queue with the VIEWER's window id, so
+ * they run the shipping event path end to end (including the hook that keeps
+ * viewer events out of the game's menu). The state echoed back is from before
+ * the event is pumped — read drop_viewer a frame later for the result. */
+static void handle_drop_viewer_click(int id, const char *json)
+{
+    const int x = json_get_int(json, "x", -1);
+    const int y = json_get_int(json, "y", -1);
+    const int button = json_get_int(json, "button", 1);
+    if (x < 0 || y < 0) { send_err(id, "need x and y"); return; }
+    if (!psx_drop_viewer_click(x, y, button)) {
+        send_err(id, "viewer is closed"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true,\"x\":%d,\"y\":%d,\"button\":%d}",
+             id, x, y, button);
+}
+
+/* drop_viewer_press / drop_viewer_release — the halves of a drag: press,
+ * then drop_viewer_move waypoints, then release at the drop point. */
+static void handle_drop_viewer_press(int id, const char *json)
+{
+    const int x = json_get_int(json, "x", -1);
+    const int y = json_get_int(json, "y", -1);
+    const int button = json_get_int(json, "button", 1);
+    if (x < 0 || y < 0) { send_err(id, "need x and y"); return; }
+    if (!psx_drop_viewer_press(x, y, button)) {
+        send_err(id, "viewer is closed"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true}", id);
+}
+
+static void handle_drop_viewer_release(int id, const char *json)
+{
+    const int x = json_get_int(json, "x", -1);
+    const int y = json_get_int(json, "y", -1);
+    const int button = json_get_int(json, "button", 1);
+    if (x < 0 || y < 0) { send_err(id, "need x and y"); return; }
+    if (!psx_drop_viewer_release(x, y, button)) {
+        send_err(id, "viewer is closed"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true}", id);
+}
+
+static void handle_drop_viewer_move(int id, const char *json)
+{
+    const int x = json_get_int(json, "x", -1);
+    const int y = json_get_int(json, "y", -1);
+    if (x < 0 || y < 0) { send_err(id, "need x and y"); return; }
+    if (!psx_drop_viewer_inject_motion(x, y)) {
+        send_err(id, "viewer is closed"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true,\"x\":%d,\"y\":%d}", id, x, y);
+}
+
+/* drop_viewer_key / drop_viewer_text — keyboard into the viewer window, same
+ * injected-SDL-event story. key is an SDL_Keycode (Return is 13, Escape 27). */
+static void handle_drop_viewer_key(int id, const char *json)
+{
+    const int key = json_get_int(json, "key", -1);
+    if (key < 0) { send_err(id, "need key"); return; }
+    if (!psx_drop_viewer_inject_key(key)) {
+        send_err(id, "viewer is closed"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true,\"key\":%d}", id, key);
+}
+
+static void handle_drop_viewer_text(int id, const char *json)
+{
+    char text[32];
+    if (!json_get_str(json, "text", text, sizeof(text))) {
+        send_err(id, "need text"); return;
+    }
+    if (!psx_drop_viewer_inject_text(text)) {
+        send_err(id, "viewer is closed"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true}", id);
+}
+
+/* drop_edits — the drop-table edit layer: entry counts, dirtiness, ini
+ * status. The per-duelist detail is visible through the viewer itself. */
+static void handle_drop_edits(int id, const char *json)
+{
+    (void)json;
+    char buf[256];
+    if (!psx_drop_edits_state_json(buf, sizeof(buf))) {
+        send_err(id, "state unavailable"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true,%s}", id, buf);
+}
+
 static void handle_card_drops_state(int id, const char *json)
 {
     (void)json;
@@ -485,6 +619,16 @@ PSX_MOD_CONSTRUCTOR(psx_ygo_debug_install) {
     (void)psx_debug_add_command("rank_fade_ring",    handle_rank_fade_ring);
     (void)psx_debug_add_command("card_drops_state",  handle_card_drops_state);
     (void)psx_debug_add_command("drop_missing_state", handle_drop_missing_state);
+    (void)psx_debug_add_command("drop_viewer",       handle_drop_viewer);
+    (void)psx_debug_add_command("drop_viewer_set",   handle_drop_viewer_set);
+    (void)psx_debug_add_command("drop_viewer_click", handle_drop_viewer_click);
+    (void)psx_debug_add_command("drop_viewer_press", handle_drop_viewer_press);
+    (void)psx_debug_add_command("drop_viewer_release",
+                                handle_drop_viewer_release);
+    (void)psx_debug_add_command("drop_viewer_move",  handle_drop_viewer_move);
+    (void)psx_debug_add_command("drop_viewer_key",   handle_drop_viewer_key);
+    (void)psx_debug_add_command("drop_viewer_text",  handle_drop_viewer_text);
+    (void)psx_debug_add_command("drop_edits",        handle_drop_edits);
     (void)psx_debug_add_command("card_drops_list",   handle_card_drops_list);
     (void)psx_debug_add_command("card_drops_p3",     handle_card_drops_p3);
     (void)psx_debug_add_command("card_drops_set",    handle_card_drops_set);

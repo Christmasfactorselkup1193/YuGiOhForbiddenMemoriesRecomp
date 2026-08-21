@@ -118,3 +118,4 @@ starvation_dump.jsonl
 # Junction the setup host creates to the shared portable cmake/clang cache
 # (%LOCALAPPDATA%/retcomm/toolchains). Not ours and not shippable.
 /toolchain
+assets/duelist_icons/*.png

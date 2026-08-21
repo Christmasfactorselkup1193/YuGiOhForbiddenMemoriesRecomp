@@ -131,6 +131,42 @@ if(YGOFM_HAS_GAME_C)
         COMMENT "Baking sprites and font from the disc"
         VERBATIM)
     list(APPEND YGOFM_GAME_SOURCES ${YGOFM_ART_SOURCES})
+
+    # --- and so are the drop tables ---------------------------------------
+    # MODS > DROP TABLE VIEWER lists every duelist's drops, but the game keeps
+    # only the CURRENT opponent's table resident, so they cannot be read out of
+    # RAM the way card names and ATK/DEF are. They come off the player's disc
+    # here for the same reason the art does, and are equally not committed.
+    set(YGOFM_DROP_DB "${YGOFM_ART_DIR}/psx_drop_db.c")
+    add_custom_command(
+        OUTPUT ${YGOFM_DROP_DB}
+        COMMAND ${Python3_EXECUTABLE}
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_drop_db.py"
+                "${YGOFM_DISC}" "${YGOFM_ART_DIR}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_drop_db.py"
+        COMMENT "Baking drop tables from the disc"
+        VERBATIM)
+    list(APPEND YGOFM_GAME_SOURCES ${YGOFM_DROP_DB})
+
+    # --- the FREE DUEL portraits ------------------------------------------
+    # Konami art again, and the one piece that is NOT derived from the disc:
+    # the portrait atlas is compressed there. They are captured from a running
+    # game into assets/duelist_icons/ (tools/gen_duelist_icons.py explains how)
+    # and baked from those PNGs. Missing icons are emitted as NULL, so a tree
+    # without them still builds and the viewer just draws a plain plate.
+    set(YGOFM_ICON_SRC "${CMAKE_CURRENT_SOURCE_DIR}/assets/duelist_icons")
+    set(YGOFM_ICONS "${YGOFM_ART_DIR}/psx_duelist_icons.c")
+    file(GLOB YGOFM_ICON_PNGS CONFIGURE_DEPENDS "${YGOFM_ICON_SRC}/*.png")
+    add_custom_command(
+        OUTPUT ${YGOFM_ICONS}
+        COMMAND ${Python3_EXECUTABLE}
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_duelist_icons.py"
+                "${YGOFM_ICON_SRC}" "${YGOFM_ART_DIR}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_duelist_icons.py"
+                ${YGOFM_ICON_PNGS}
+        COMMENT "Baking duelist portraits"
+        VERBATIM)
+    list(APPEND YGOFM_GAME_SOURCES ${YGOFM_ICONS})
 else()
     message(STATUS
         "ygofm: setup host — no game C, so no game features and no art")

@@ -1,2 +1,4 @@
-﻿psxrecomp=<local junction> C:\dev\memories\psxrecomp-master
-recomp-ui=<not added>
+psxrecomp=f944ba40 (f944ba408632d5ad5e5e17d9257b0f22eec57424)
+recomp-ui=<missing>
+recomp-net=<present, not a git checkout>
+retcomm-rbengine=ec7fe61 (ec7fe610b1f9370d701a5e372e2280bed0cef973)

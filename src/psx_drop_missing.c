@@ -37,6 +37,7 @@
  */
 
 #include "psx_drop_missing.h"
+#include "psx_drop_edits.h"
 #include "psx_drop_missing_table.h"
 
 #include <stdio.h>
@@ -67,7 +68,8 @@ static char g_status[128] = "not started";
 static char g_ini_path[1024] = "";
 static uint32_t g_last_fp = 0;      /* observability: last fingerprint seen */
 static int  g_matched = -1;         /* duelist it resolved to, -1 = none */
-static int  g_tier_ok[3] = { -1, -1, -1 };  /* per-tier apply result */
+static int  g_tier_ok[3] = { -1, -1, -1 };  /* per-tier apply result (mod)   */
+static int  g_edit_ok[3] = { -1, -1, -1 };  /* per-tier apply result (edits) */
 
 static uint32_t tbl_addr(int table, unsigned card_index)
 {
@@ -89,70 +91,124 @@ static uint32_t resident_fingerprint(void)
     return h;
 }
 
-/* Rewrite one tier so our cards are in it and the total is still exactly 2048.
+/* Rewrite one tier so a set of pinned cards hold exactly the given weights and
+ * the total is still exactly 2048.
  *
  * Existing weights are scaled by (2048 - added) / 2048. A nonzero weight is
  * never allowed to round to zero: that would silently delete one of the
  * duelist's stock drops, which is a bigger change than the one being asked
  * for. Integer division loses a few units, so the shortfall is handed back to
- * the heaviest entries afterwards and the tier lands on 2048 exactly. */
-static int apply_tier(int duelist, int tier)
+ * the heaviest entries afterwards and the tier lands on 2048 exactly.
+ *
+ * This is THE renormalizer: the mod's placements and the viewer's user edits
+ * both go through it, so there is exactly one piece of arithmetic keeping the
+ * 2048 invariant. A pinned weight of 0 is a removal — the card's old weight
+ * is released to everyone else by the same rescale. */
+int psx_drop_pins_rescale(uint16_t *w, const uint16_t *cards,
+                          const uint16_t *weights, int n)
 {
-    const DuelistAdds *da = &g_adds[duelist];
+    /* All work happens on a copy: a failing return leaves w exactly as it
+     * came, which is what every caller assumes a negative code means. */
+    uint16_t t[PSX_DROP_CARDS];
+    if (!w || !cards || !weights || n <= 0) return -1;
+    memcpy(t, w, sizeof(t));
+
     uint32_t added = 0;
-    for (int i = 0; i < da->n; i++)
-        if (da->add[i].tier == tier) added += da->add[i].weight;
-    if (!added) return -1;          /* nothing configured for this band */
-    if (added > PSX_DROP_TIER_TOTAL - 64u) added = PSX_DROP_TIER_TOTAL - 64u;
+    for (int i = 0; i < n; i++) added += weights[i];
+    /* Pins may not squeeze the rest of the tier below breathing room: every
+     * surviving stock entry keeps at least weight 1, and 64 spare units is
+     * the margin that guarantees the shortfall walk can land on 2048. */
+    if (added > PSX_DROP_TIER_TOTAL - 64u) return -4;
 
-    const int table = tier + 1;        /* table 0 is the deck pool */
-    uint16_t w[PSX_DROP_CARDS];
-    for (unsigned i = 0; i < PSX_DROP_CARDS; i++)
-        w[i] = psx_mod_read_half(tbl_addr(table, i));
-
-    /* zero our cards first, so a card the duelist somehow already drops is
-     * replaced by the configured weight rather than added to it */
-    for (int i = 0; i < da->n; i++)
-        if (da->add[i].tier == tier && da->add[i].card >= 1
-            && da->add[i].card <= PSX_DROP_CARDS)
-            w[da->add[i].card - 1] = 0;
+    /* zero the pinned cards first, so a card the duelist already drops is
+     * replaced by the pinned weight rather than added to it */
+    for (int i = 0; i < n; i++)
+        if (cards[i] >= 1 && cards[i] <= PSX_DROP_CARDS)
+            t[cards[i] - 1] = 0;
 
     uint32_t old_sum = 0;
-    for (unsigned i = 0; i < PSX_DROP_CARDS; i++) old_sum += w[i];
+    for (unsigned i = 0; i < PSX_DROP_CARDS; i++) old_sum += t[i];
     if (!old_sum) return -2;                    /* empty table: nothing to scale */
 
     const uint32_t target = PSX_DROP_TIER_TOTAL - added;
     uint32_t got = 0;
     for (unsigned i = 0; i < PSX_DROP_CARDS; i++) {
-        if (!w[i]) continue;
-        uint32_t v = (uint32_t)w[i] * target / old_sum;
+        if (!t[i]) continue;
+        uint32_t v = (uint32_t)t[i] * target / old_sum;
         if (!v) v = 1;
-        w[i] = (uint16_t)v;
+        t[i] = (uint16_t)v;
         got += v;
     }
     /* hand the rounding shortfall to the heaviest entries, one unit at a time */
     while (got < target) {
         unsigned best = 0; uint16_t bw = 0;
         for (unsigned i = 0; i < PSX_DROP_CARDS; i++)
-            if (w[i] > bw) { bw = w[i]; best = i; }
+            if (t[i] > bw) { bw = t[i]; best = i; }
         if (!bw) break;
-        w[best]++; got++;
+        t[best]++; got++;
     }
     while (got > target) {
         unsigned best = 0; uint16_t bw = 0;
         for (unsigned i = 0; i < PSX_DROP_CARDS; i++)
-            if (w[i] > bw) { bw = w[i]; best = i; }
+            if (t[i] > bw) { bw = t[i]; best = i; }
         if (bw <= 1) break;
-        w[best]--; got--;
+        t[best]--; got--;
     }
-    for (int i = 0; i < da->n; i++)
-        if (da->add[i].tier == tier && da->add[i].card >= 1
-            && da->add[i].card <= PSX_DROP_CARDS)
-            w[da->add[i].card - 1] = da->add[i].weight;
+    for (int i = 0; i < n; i++)
+        if (cards[i] >= 1 && cards[i] <= PSX_DROP_CARDS)
+            t[cards[i] - 1] = weights[i];
 
     uint32_t total = 0;
-    for (unsigned i = 0; i < PSX_DROP_CARDS; i++) total += w[i];
-    if (total != PSX_DROP_TIER_TOTAL) return -3; /* refuse to write a bad table */
+    for (unsigned i = 0; i < PSX_DROP_CARDS; i++) total += t[i];
+    if (total != PSX_DROP_TIER_TOTAL) return -3; /* a table like this is wrong */
+    memcpy(w, t, sizeof(t));
+    return 1;
+}
+
+/* The mod's placements for one band, as pins. Returns 1 on success, or the
+ * negative codes above. w is 722 stock weights in, transformed weights out. */
+int psx_drop_missing_transform(int duelist, int tier, uint16_t *w)
+{
+    if (duelist < 0 || duelist >= 39 || tier < 0 || tier >= 3 || !w) return -1;
+    const DuelistAdds *da = &g_adds[duelist];
+    uint16_t cards[MAX_ADDS], weights[MAX_ADDS];
+    int n = 0;
+    uint32_t added = 0;
+    for (int i = 0; i < da->n; i++) {
+        if (da->add[i].tier != tier) continue;
+        cards[n] = da->add[i].card;
+        weights[n] = da->add[i].weight;
+        added += da->add[i].weight;
+        n++;
+    }
+    if (!n || !added) return -1;    /* nothing configured for this band */
+    return psx_drop_pins_rescale(w, cards, weights, n);
+}
+
+/* Read the resident tier, run the full layering — mod placements when the row
+ * is on, then the player's drop-table edits — and write it back only if a
+ * layer changed it. ONE writer for both layers on purpose: a second writer
+ * would race this one over the same guest bytes, and the write-once guard
+ * (a rewritten table no longer matches the stock fingerprint) only holds if
+ * everything lands in the same write. Split from the arithmetic above so
+ * nothing but this touches guest memory. edit_rc reports the edit layer's
+ * result the way the transform reports its own. */
+static int apply_tier(int duelist, int tier, int *edit_rc)
+{
+    const int table = tier + 1;        /* table 0 is the deck pool */
+    uint16_t w[PSX_DROP_CARDS];
+    for (unsigned i = 0; i < PSX_DROP_CARDS; i++)
+        w[i] = psx_mod_read_half(tbl_addr(table, i));
+
+    int changed = 0;
+    int rc = -1;
+    if (g_enabled) {
+        rc = psx_drop_missing_transform(duelist, tier, w);
+        if (rc == 1) changed = 1;
+    }
+    *edit_rc = psx_drop_edits_apply(duelist, tier, w);
+    if (*edit_rc == 1) changed = 1;
+    if (!changed) return rc;           /* refuse to write a bad table */
 
     for (unsigned i = 0; i < PSX_DROP_CARDS; i++)
         psx_mod_write_half(tbl_addr(table, i), w[i]);
@@ -296,9 +352,19 @@ static void ensure_loaded(void)
 
 /* --- per frame ------------------------------------------------------------ */
 
+/* The placements come from the ini on first use. The viewer reads them too, so
+ * loading cannot stay private to the tick — a viewer opened before the first
+ * duel would otherwise show the built-in defaults while the ini said
+ * otherwise. */
+void psx_drop_missing_ensure_loaded(void) { ensure_loaded(); }
+
 void psx_drop_missing_tick(void)
 {
-    if (!g_enabled || !psx_mod_game_started()) return;
+    if (!psx_mod_game_started()) return;
+    /* The tick also carries the viewer's drop-table edits into the game (see
+     * apply_tier), so it keeps watching when the mod row is off but edits
+     * exist. */
+    if (!g_enabled && !psx_drop_edits_any()) return;
     ensure_loaded();
 
     /* Poll the whole fingerprint on a throttle rather than sampling a few
@@ -317,10 +383,9 @@ void psx_drop_missing_tick(void)
     for (int r = 0; r < 39; r++) {
         if (PSX_DROP_DUELISTS[r].fingerprint != fp) continue;
         g_matched = r;
-        if (!g_adds[r].n) { g_last_duelist = r; return; }
         int ok = 0;
         for (int t = 0; t < 3; t++) {
-            g_tier_ok[t] = apply_tier(r, t);
+            g_tier_ok[t] = apply_tier(r, t, &g_edit_ok[t]);
             if (g_tier_ok[t] == 1) ok++;
         }
         if (ok) {
@@ -328,11 +393,15 @@ void psx_drop_missing_tick(void)
             g_last_duelist = r;
             g_last_fp = resident_fingerprint();  /* our own write is not a change */
             snprintf(g_status, sizeof(g_status), "applied to %s", PSX_DROP_DUELISTS[r].name);
+        } else {
+            g_last_duelist = r;
         }
         return;
     }
     /* not a stock table: either already ours, or not a duel table at all */
 }
+
+int psx_drop_missing_enabled(void) { return g_enabled; }
 
 int psx_drop_missing_state_json(char *out, unsigned cap)
 {
@@ -340,10 +409,11 @@ int psx_drop_missing_state_json(char *out, unsigned cap)
     return snprintf(out, cap,
         "\"enabled\":%d,\"loaded\":%d,\"from_ini\":%d,\"applied\":%d,"
         "\"fingerprint\":\"0x%08X\",\"matched\":%d,"
-        "\"tier_result\":[%d,%d,%d],"
+        "\"tier_result\":[%d,%d,%d],\"edit_result\":[%d,%d,%d],"
         "\"last_duelist\":\"%s\",\"status\":\"%s\"",
         g_enabled, g_loaded, g_from_ini, g_applied,
         g_last_fp, g_matched, g_tier_ok[0], g_tier_ok[1], g_tier_ok[2],
+        g_edit_ok[0], g_edit_ok[1], g_edit_ok[2],
         (g_last_duelist >= 0) ? PSX_DROP_DUELISTS[g_last_duelist].name : "-",
         g_status);
 }
