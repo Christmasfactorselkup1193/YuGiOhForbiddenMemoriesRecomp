@@ -84,4 +84,5 @@ exec bash "${PACKAGER}" \
   --project-dir tools \
   --project-dir seeds \
   --project-dir assets \
+  --project-exclude assets/duelist_icons \
   "${EXTRA_PROJECT[@]}"

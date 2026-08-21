@@ -1,5 +1,58 @@
 # Release notes
 
+## 0.3.0
+
+Extract this over your existing install as usual. Your saves live in
+`Documents\My Games\Yu-Gi-Oh Forbidden Memories Recompiled` and nothing this
+update writes can reach them.
+
+> **Save STATES from 0.2.x will not load** in this version — the recompiler
+> itself changed underneath them (see *Framework* below) and the loader
+> refuses a state made by different codegen rather than resuming into it.
+> **Memory-card saves are unaffected** and carry over as always. If you have
+> a savestate you care about, open it in 0.2.6 once and save in-game first.
+
+### New: the Drop Table Manager — `VIEW → DROP TABLE MANAGER`
+
+The drop table viewer grew into a **manager**: it no longer just shows every
+duelist's drop table — **you can rewrite them, and the game rolls what you
+wrote.**
+
+- **Edit anything.** Click a weight and type a new one; click the rank cell
+  to move a drop between S/A POW, B/C/D and S/A TEC. Right-click any row for
+  add / move / remove. Drag a card from the list and drop it on a duelist to
+  add it — the new `ALL CPU` toggle lists every duelist under a card, greyed
+  where they do not drop it, so all 39 are drop targets without switching
+  views.
+- **The math stays honest.** Every band always totals exactly 2048 — the
+  invariant the game's own drop roll assumes — so whatever you add or grow
+  comes off that duelist's other drops in proportion, and an edit that cannot
+  balance is refused with a message instead of fudged.
+- **Nothing sticks until you press `SAVE`**, which writes
+  `drop_table_edits.ini` next to your saves — hand-editable, same shape as
+  the DROP MISSING CARDS file. `DEFAULTS` returns the selected duelist to
+  stock (stock *plus* the mod, if that row is on: your edits layer cleanly on
+  top of it, in the window and in the game alike).
+- **Share your tables.** `LOAD → EXPORT CURRENT` writes a timestamped file
+  into `drop_tables\` beside your saves; anyone can drop that file into their
+  own `drop_tables\` folder and pick it from `LOAD`. Loading, too, is nothing
+  until saved.
+- Quality of life throughout: scrollbars in both panes (722 cards is a lot
+  of mouse wheel), TYPE and DROPS columns with full column sorting in every
+  pane, a blinking search caret, hover highlights, and `N-M OF K` position
+  indicators.
+- Fixed: hovering the manager's window while it overlapped the game no
+  longer hovers the game's F10 menu underneath it.
+
+### Framework catch-up
+
+The bundled PSXRecomp framework caught up with 53 upstream commits. The
+headline gains: an LWL/LWR load-delay fix in the recompiler (a real
+correctness class, and the reason old savestates are refused), the PGXP
+Precision mod (framework-owned, off by default), SPU voice address
+alignment, CD-DA position-report interrupts, and a fix for vsync and the
+frame pacer double-blocking presents.
+
 ## 0.2.6
 
 Extract this over your existing install as usual. Your saves live in
