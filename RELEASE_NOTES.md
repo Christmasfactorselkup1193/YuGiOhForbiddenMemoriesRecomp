@@ -35,8 +35,10 @@ toggle reshapes the window live. Works with both `VIDEO → SCALING` modes:
 FILL WINDOW stretches to fit, INTEGER keeps whole pixels and snaps the
 wide frame to the largest multiple that fits. Overlays that ride the
 duel screen (the rank badge, the fusion hint) stay anchored to the boxes
-they label in wide mode. Experimental: culling pop-in at the wide edges
-has not been fully checked for this title.
+they label in wide mode, and menu screens no longer pulse between wide
+and 4:3 after a duel (the FREE DUEL cursor's sparkle was misread as 3D
+for a moment every couple of seconds). Experimental: culling pop-in at
+the wide edges has not been fully checked for this title.
 
 ### Fixed: first-run build error on machines with the Vulkan SDK
 
