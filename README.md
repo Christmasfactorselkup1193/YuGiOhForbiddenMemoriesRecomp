@@ -4,10 +4,10 @@ A static recompilation of **Yu-Gi-Oh! Forbidden Memories** (USA, SLUS-01411).
 The game's MIPS code is translated to C ahead of time and compiled into a native
 executable — it is not interpreted by an emulator.
 
-On top of that sits a set of quality-of-life features built specifically for
-this game: a live duel-rank meter, a fusion assistant that reads your actual
-hand, a card-drop multiplier with a proper results screen, and a small cheat
-menu. All of it drawn in the game's own art, all of it toggleable at runtime.
+On top of that sits a set of quality-of-life features built for this game: a
+live duel-rank meter, a fusion assistant that reads your actual hand, a card-drop
+multiplier with a proper results screen, and a cheat menu. All drawn in the
+game's own art, all toggleable at runtime.
 
 Built on [PSXRecomp](https://github.com/mstan/psxrecomp).
 
@@ -31,27 +31,24 @@ setting takes effect immediately — no restart, no patched save.
 
 ### ⚔️ Duel rank meter — `VIEW → DUEL RANK`
 
-The game grades every duel you win, but it only tells you afterwards. This puts
-the grade on screen **while you play**, so you can see a careless move cost you
-an S before the duel is over.
+The game grades every duel you win but only tells you afterwards. This puts the
+grade on screen **while you play**, in the game's own HUD sprites, lifted from
+its own VRAM. It tracks the picture through scaling and aspect changes and hides
+itself when a card view covers the box it labels.
 
 | Mode | What you get |
 |---|---|
 | `OFF` | stock behaviour |
-| `IN GAME` | the game's own POW/TEC badge and rank letter, beside the FIELD box |
+| `IN GAME` | the game's POW/TEC badge and rank letter, beside the FIELD box |
 | `IN GAME + SCORE` | the same, plus the raw 0–99 score |
 | `OVERLAY TEXT` | plain text in the corner — never covered by a card view |
-
-The sprites are the game's, lifted from its own VRAM, so the meter sits in the
-HUD looking like it was always there. It tracks the picture through scaling and
-aspect changes, and hides itself the moment a card view covers the box it
-labels.
 
 ### 🧩 Fusion assistant — `VIEW → FUSION HINT`
 
 Forbidden Memories has thousands of fusions and teaches you none of them. This
-reads the cards actually in your hand, checks them against the game's own fusion
-tables, and tells you what they make.
+reads the cards in your hand against the game's real fusion and equip tables in
+memory — not a copied list — so its answers are the game's answers, including
+the awkward three-step rule the game actually implements.
 
 | Mode | What you get |
 |---|---|
@@ -59,41 +56,29 @@ tables, and tells you what they make.
 | `NUMBERS` | pick order marked on the cards themselves |
 | `NUMBERS + INFO` | pick order plus the name of the card it produces |
 
-`VIEW → SUGGEST FUSION BY` chooses whether it optimises for **ATTACK** or
-**DEFENSE**.
-
-It reads the game's real fusion and equip tables out of memory rather than a
-copied list, so its answers are the game's answers — including the awkward
-three-step rule the game actually implements.
+`VIEW → SUGGEST FUSION BY` chooses **ATTACK** or **DEFENSE**.
 
 ### 🎴 Card drops — `MODS → CARD DROPS`
 
 Stock, a won duel awards exactly one card. This makes it **1–99**, so grinding a
 specific drop stops being a weekend.
 
-It comes with a results screen that stock never had: the cards you won, listed
-across three pages you flip with **D-pad Left/Right**, with a yellow **New!**
-tag — the game's own label — on anything you didn't already own.
+It comes with a results screen stock never had: the cards you won across three
+pages you flip with **D-pad Left/Right**, with the game's own yellow **New!**
+tag on anything you didn't already own.
 
 ### 🃏 Drop missing cards — `MODS → DROP MISSING CARDS`
 
-**82 of the game's 722 cards are dropped by nobody.** Both of Exodia's legs are
+**82 of the game's 722 cards are dropped by nobody** — both of Exodia's legs
 among them, which is why the set cannot be completed by duelling in the stock
 game. This gives every one of them a source.
 
-Nothing on your disc is touched. The duel loads the current opponent's drop
-weights into memory and this rewrites that copy, so the game rolls its own
-tables and the change lasts exactly as long as the duel does.
+Nothing on your disc is touched: the duel loads the opponent's drop weights into
+memory and this rewrites that copy, so the change lasts as long as the duel does.
 
-The placement is yours to change. On first run the mod writes
-**`drop_missing_cards.ini`** into your player-data folder — the same place your
-memory cards and save states live:
-
-```
-Documents\My Games\Yu-Gi-Oh Forbidden Memories Recompiled```
-
-(or next to the game, if you run it portable). It lists every card by name
-under the duelist that drops it:
+Placement is yours to change. On first run the mod writes
+**`drop_missing_cards.ini`** into your player-data folder, listing every card by
+name under the duelist that drops it:
 
 ```ini
 [Weevil Underwood]
@@ -102,11 +87,9 @@ under the duelist that drops it:
 ```
 
 The three numbers are the S/A POW, B/C/D and S/A TEC rates, as weights out of
-2048 — 20 is about 1%. Delete the file to get the defaults back.
-
-Every rank band always totals 2048, so whatever you add is taken off that
-duelist's normal drops in proportion. The shipped table adds about 1–6% per
-duelist, which you will not notice; adding hundreds would gut their pool.
+2048 — 20 is about 1%. Each band always totals 2048, so what you add comes off
+that duelist's normal drops in proportion; the shipped table adds 1–6% each.
+Delete the file for the defaults back.
 
 ### 💰 Cheats — `CHEATS`
 
@@ -119,29 +102,24 @@ duelist, which you will not notice; adding hundreds would gut their pool.
 | `FREE SPENDING` | on / off | purchases succeed, the deduction is undone |
 | `ALL CARDS` | 1, 2 or 3 of each | fills the trunk. Apply with the chest closed |
 
-`SHOW OPPONENT HAND` is not an overlay: the game already knows how to draw the
-opponent's hand the same way it draws yours, and one flag in the duel state is
-all that keeps it face-down. Clearing it gives you their real card sprites,
-names and ATK/DEF, in the game's own renderer, un-greyed.
+Neither reveal is an overlay. `SHOW OPPONENT HAND` clears the one flag that
+keeps their hand hidden, so you get their real sprites, names and ATK/DEF in the
+game's own renderer. `FORCE FACE UP` clears the face-down bit, which is real
+game state and not a drawing choice — a monster revealed that way genuinely is
+face-up and will not flip when attacked. Turning it off stops new reveals; it
+does not re-hide what has already turned over.
 
-`FORCE FACE UP` clears the face-down bit on the opponent's cards, in their
-hand and on their field. That bit is real game state, not just a drawing
-choice — the battle code reads it too — so a monster revealed this way is
-genuinely face-up and will not flip when you attack it. It stays in defense
-position if that is how it was set. Switching the row back off stops new cards
-being revealed; it does not re-hide cards already turned over.
-
-`LIFE POINTS`, `SHOW OPPONENT HAND` and `FORCE FACE UP` are preferences and are
-restored on every launch. The other three are live writes to save data and are
-deliberately *not* re-applied at startup, so a cheat you tried once cannot
-quietly clobber a later save.
+`LIFE POINTS`, `SHOW OPPONENT HAND` and `FORCE FACE UP` are preferences,
+restored on every launch. The other three write live save data, so they are
+deliberately *not* re-applied at startup and decline with a message until a save
+is loaded, rather than writing over whatever else is in memory.
 
 ### From the runtime
 
 Also in the `F10` menu, courtesy of PSXRecomp: save states, rewind (`F8`), an
-emulation-speed multiplier, and **`GAME → FAST LOADING`** — which cuts the
-disc loads to near-instant. That one ships **off**, so the game loads at
-original speed until you turn it on; the setting then persists.
+emulation-speed multiplier, and **`GAME → FAST LOADING`**, which cuts disc loads
+to near-instant. That one ships **off**; the setting persists once you turn it
+on.
 
 ---
 
@@ -150,16 +128,14 @@ original speed until you turn it on; the setting then persists.
 ### Controller
 
 **Xbox controllers work out of the box** — plug one in, no setup. So do PS4 and
-PS5 DualShock/DualSense pads, and Steam's virtual controller if you launch
-through Steam Input. Rumble is supported on DualSense.
+PS5 DualShock/DualSense pads (rumble supported on DualSense), and Steam's
+virtual controller through Steam Input. The game is a PS1 title, so it starts in
+**digital** pad mode and the sticks map to the d-pad.
 
-The game is a PS1 title, so it starts in **digital** pad mode; the sticks map to
-the d-pad. Nothing needs configuring.
-
-> Very old DirectInput-only pads are the one exception. DirectInput is off by
+> Very old DirectInput-only pads are the exception. DirectInput is off by
 > default because enumerating it stalled startup by up to 40 seconds on some
-> machines. If you have such a pad, set `SDL_JOYSTICK_DIRECTINPUT=1` in your
-> environment and it comes back.
+> machines. Set `SDL_JOYSTICK_DIRECTINPUT=1` in your environment to bring it
+> back.
 
 ### Keyboard
 
@@ -172,8 +148,7 @@ the d-pad. Nothing needs configuring.
 | △ Triangle | `A` | | L3 / R3 | `T` / `Y` |
 | Start | `Enter` | | Select | `Right Shift` |
 
-In this game you mostly need **arrows** to move, **`X`** to confirm, and
-**`S`** to cancel.
+Mostly you need **arrows** to move, **`X`** to confirm, **`S`** to cancel.
 
 ### Hotkeys
 
@@ -187,10 +162,8 @@ In this game you mostly need **arrows** to move, **`X`** to confirm, and
 | `F` | Show performance stats |
 | Numpad `+` / `-` | Volume |
 
-### Rebinding
-
 Keys are stored in `keybinds.ini` next to the executable, in plain text with the
-accepted key names listed at the top. Edit it and restart. Each input takes an
+accepted names listed at the top. Edit it and restart. Each input takes an
 optional second binding after a comma, so `cross = X, Mouse1` binds both.
 
 ---
@@ -208,21 +181,18 @@ the framework source. It has no game code in it until you supply a disc.
    copy, and compiles it.
 4. It builds into `build-release/` and starts the game.
 
-Nothing needs installing first. The setup brings its own compiler and its own
-Python; if you already have them they are used instead.
+Nothing needs installing first — the setup brings its own compiler and Python,
+and uses yours if you already have them.
 
 > ### ⏳ The first run takes a few minutes — let it finish
 >
-> A compiler download, a whole game translated to C, and a real compile all
-> happen before you see anything. A console window will sit there working; that
-> is it doing its job, not hanging. **Every run after the first starts
-> immediately.**
+> A compiler download, a whole game translated to C, and a real compile happen
+> before you see anything; the console window working away is not hanging.
+> **Every run after the first starts immediately.**
 >
-> **That wait is the entire point.** This download contains no game code and no
-> game assets — not the executable, not the sprites, not even the font. All of
-> it is produced on your machine, from the disc you already own, and never
-> leaves it. Shipping a ready-made build would mean shipping Konami's work;
-> doing it this way means nobody does.
+> **That wait is the point.** This download contains no game code and no game
+> assets — not the executable, not the sprites, not even the font. All of it is
+> produced on your machine, from the disc you own, and never leaves it.
 
 ### Which dump
 
@@ -230,12 +200,9 @@ Python; if you already have them they are used instead.
 and `.chd` also work.
 
 This build is compiled from the USA release, serial **SLUS-01411**. A PAL,
-Japanese, or Greatest Hits disc is a different program — this build does not
-contain its code and cannot run it. The expected data-track CRC32 is recorded in
-`game.toml` as `disc_crc`.
-
-The hash is computed once, when you choose the disc, not on every boot. If the
-file moves or changes, the check runs again. To repoint it yourself, use
+Japanese or Greatest Hits disc is a different program and cannot run here. The
+expected data-track CRC32 is recorded in `game.toml` as `disc_crc`, and is
+computed once when you choose the disc, not on every boot. To repoint it, use
 `FILE → CHANGE GAME DISC` in the `F10` menu.
 
 ### Command line
@@ -252,17 +219,16 @@ Also available: `--bios <path>`, `--memcard-dir <path>`, `--no-launcher`.
 
 ## Building from source
 
-The framework is a submodule at `psxrecomp/`, so clone recursively:
+The framework is a submodule at `psxrecomp/`, so clone recursively (or run
+`git submodule update --init --recursive` if you already cloned):
 
 ```bash
 git clone --recurse-submodules https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp.git
 ```
 
-(Already cloned without it? `git submodule update --init --recursive`.)
-
-Then generate and build. The `generate` step produces **both** the recompiled
-BIOS and the game's C — the framework ships `bios/openbios.bin` but not the
-recompiled form of it, so a fresh clone has no BIOS backend until this runs:
+`generate` produces **both** the recompiled BIOS and the game's C — the
+framework ships `bios/openbios.bin` but not its recompiled form, so a fresh
+clone has no BIOS backend until this runs:
 
 ```bash
 python3 psxrecomp/psxrecomp_cli.py generate \
@@ -271,27 +237,17 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target psx-runtime
 ```
 
-If you would rather not do any of that by hand, the setup host does exactly
-these steps for you — see [First run](#first-run).
+(The setup host does exactly this for you — see [First run](#first-run).)
 
-Both `generated/` and the game's baked sprite and font sources are produced from
-**your** disc. They are gitignored and must not be published — see
-[NOTICE](NOTICE).
+`generated/` and the baked sprite and font sources come from **your** disc; they
+are gitignored and must not be published — see [NOTICE](NOTICE). The art is
+baked at build time, so CMake must know where your disc is: running `generate`
+first is enough. Failing that it tries `-DYGOFM_DISC=<path>`, the disc this
+build directory already verified, then the one recorded beside the executable,
+and stops with a message rather than shipping a runtime with no art.
 
-Because the artwork is baked at build time, CMake needs to know where your disc
-is. Running `generate` first (as above) is enough — it prepares a working copy
-under `disc/` and CMake finds it there. Failing that it looks, in order, at
-`-DYGOFM_DISC=<path>` if you pass one, the disc this build directory already
-verified, and the one recorded beside the executable. If it finds none,
-configuring stops with a message rather than quietly producing a runtime with
-no art:
-
-```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DYGOFM_DISC=/path/to/your.bin
-```
-
-For a debug build with the TCP inspection server on `127.0.0.1:4370`, add
-`-DPSX_DEBUG_TOOLS=ON`.
+Add `-DPSX_DEBUG_TOOLS=ON` for a debug build with the TCP inspection server on
+`127.0.0.1:4370`.
 
 ### Packaging a release
 
@@ -304,29 +260,22 @@ scripts/package_setup_release.sh build-setup <artifact-tag>
 ```
 
 Writes `dist/ygofm-<version>-<tag>.zip`. Needs `objdump` on `PATH` so bundled
-MinGW DLLs can be resolved. The build directory must be a **setup host** build —
-`PSXRECOMP_FORCE_SETUP_HOST=ON` — not the game.
+MinGW DLLs can be resolved, and the build directory must be a **setup host**
+build (`PSXRECOMP_FORCE_SETUP_HOST=ON`), not the game.
 
 ---
 
-## Framework
+## Framework and symbols
 
-`psxrecomp/` is a submodule pinned to the
+`psxrecomp/` is pinned to the
 [`ygofm`](https://github.com/Unchiga/psxrecomp/tree/ygofm) branch of a fork of
-[PSXRecomp](https://github.com/mstan/psxrecomp).
+[PSXRecomp](https://github.com/mstan/psxrecomp), because this project needs
+framework work not upstream yet: the disc-identity gate, registration APIs so a
+title owns its own debug commands and guest-space overlays, a per-vblank game
+hook, and a launcher-less setup host. All additive and intended for upstream;
+the branch exists so this repository builds today.
 
-It is a fork rather than upstream because this project depends on framework work
-that is not upstream yet: the disc-identity gate, registration APIs so a title
-can own its debug commands and its guest-space overlays instead of the framework
-naming them, a per-vblank game hook, and a first-run setup host that works
-without a launcher. Those are additive and intended for upstream; the branch
-exists so this repository builds today rather than waiting on that.
-
----
-
-## Symbols
-
-`symbols.toml` → `python3 tools/sync_symbols.py` → `psx_symbols.h`
+Symbols: `symbols.toml` → `python3 tools/sync_symbols.py` → `psx_symbols.h`
 (`PSX_FN_*`). See `psxrecomp/docs/SYMBOLS.md`.
 
 ---
@@ -338,9 +287,8 @@ only, and the licence cannot be sublicensed or swapped for a permissive one,
 because the framework it builds on is offered on the same terms
 (Copyright © 2026 Matthew Stan).
 
-That licence covers this project and the framework. It grants nothing in respect
-of the game itself, which is Konami's. Use only a disc image and BIOS you
-obtained legally.
+That covers this project and the framework. It grants nothing in respect of the
+game, which is Konami's — use only a disc image and BIOS you obtained legally.
 
 Read [NOTICE](NOTICE) before redistributing anything — particularly before
 sharing a *compiled build*, which is not the same as sharing this repository.

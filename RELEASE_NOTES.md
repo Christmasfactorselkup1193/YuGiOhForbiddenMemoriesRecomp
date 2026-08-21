@@ -1,5 +1,61 @@
 # Release notes
 
+## 0.2.6
+
+Extract this over your existing install as usual. Your saves live in
+`Documents\My Games\Yu-Gi-Oh Forbidden Memories Recompiled` from 0.2.3 onward,
+so nothing this update writes can reach them.
+
+### New: `MODS → DROP MISSING CARDS`
+
+**82 of the game's 722 cards are dropped by nobody.** Both of Exodia's legs are
+among them, which is why the card list cannot be completed by duelling in the
+stock game. Turn this on and every one of them has a source.
+
+Nothing on your disc is touched. A duel loads the current opponent's drop
+weights into memory, and this rewrites that copy — so the change lasts exactly
+as long as the duel does.
+
+The placement is yours to change. On first run it writes
+**`drop_missing_cards.ini`** next to your saves, listing every card by name
+under the duelist that drops it:
+
+```ini
+[Weevil Underwood]
+52  =  30,  20,   0   ; Hercules Beetle
+278 =  30,  20,   0   ; Petit Moth
+```
+
+The three numbers are the S/A POW, B/C/D and S/A TEC rates, as weights out of
+2048 — 20 is about 1%. Each band always totals 2048, so whatever you add comes
+off that duelist's normal drops in proportion. The shipped table adds about 1–6%
+per duelist, which you will not notice. Delete the file to get the defaults
+back.
+
+### Fixed: `CHEATS → ALL CARDS` before the title screen
+
+**Turning `ALL CARDS` on during the Konami logos or the intro movie distorted
+the picture and then froze the game.** It never reached the title. This is in
+0.2.5 too.
+
+The row writes card counts to three places in memory, and one of those is only
+the card chest's working buffer while the chest is the screen you are on. Before
+a save is loaded it belongs to the intro instead, so the row was writing over
+the movie as it played.
+
+The three rows that write save data — `ALL CARDS`, `STARCHIPS` and
+`FREE SPENDING` — now check that a save is actually loaded first, and say
+"load a save first" instead of doing anything if it is not. `ALL CARDS` also
+leaves the chest's buffer alone unless it really is the chest's buffer, which
+means the same mistake cannot corrupt a duel or a shop screen either.
+
+### No more startup toast for cheats you never touched
+
+Stored cheat settings are re-applied as the game starts, and the two reveal rows
+announced themselves while that happened — every launch opened with
+"Their cards: face up", even when the setting was OFF and nothing had changed.
+The message is still there when you move the row yourself.
+
 ## 0.2.5
 
 Extract this over your existing install as usual. Your saves live in
