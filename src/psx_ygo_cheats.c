@@ -12,11 +12,71 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "host_osd.h"
 #include "mod_plugins.h"
 #include "psx_game_hooks.h"
 #include "psx_video_menu.h"
+
+/* --- Is a save actually resident? ----------------------------------------
+ * `psx_mod_game_started()` is NOT this question, and three rows below were
+ * asking it as if it were. From fntrace.c it is a one-shot that fires the
+ * first time the game EXE's entry_pc is dispatched, so it is already true
+ * during the Konami cards, throughout the intro movie, on the title screen,
+ * and on the name-entry screen of a brand new game. Those rows write SAVE
+ * data, and before a save exists their addresses belong to the boot sequence.
+ *
+ * Measured 2026-08-21 on the debug build: toggling ALL CARDS during the intro
+ * scrambles the movie into macroblock garbage and then the picture stops
+ * advancing for good — the emulator keeps running at full speed and the CD
+ * keeps streaming, but the game never reaches the title. Filling each of that
+ * row's three destinations on its own attributes it exactly: the two save
+ * struct copies change nothing, 0x80105D98 alone reproduces it every time.
+ *
+ * The save struct carries its own signature. Its first 0x50 bytes are the
+ * 40-card deck, one u16 card id per slot, and ids run 1..722; the region is
+ * all zeros on every screen that precedes a save. So "forty halfwords, every
+ * one of them a real card id" separates the two cases outright — measured
+ * false on the intro, the title and name entry, and true in all twelve
+ * in-game states on hand. Same self-identifying trick psx_drop_missing.c uses
+ * to name a duellist from its resident drop table instead of trusting an
+ * index, and deliberately not a timer: "wait N seconds after boot" is a guess
+ * that a slow load breaks, while this asks the actual question. */
+#define PSX_SAVE_LIVE     0x801D0200u   /* live save struct, 0x680 bytes */
+#define PSX_SAVE_MIRROR   0x801D3200u   /* its +0x3000 copy */
+#define PSX_SAVE_DECK_N   40u           /* deck at +0x00, one u16 per card */
+#define PSX_TRUNK_OFF     0x50u         /* per-card counts start here */
+#define PSX_TRUNK_LEN     722u
+#define PSX_CARD_ID_MAX   722u
+
+static int deck_resident(uint32_t save_base) {
+    for (uint32_t i = 0; i < PSX_SAVE_DECK_N; i++) {
+        const uint32_t id = psx_mod_read_half(save_base + i * 2u);
+        if (id < 1u || id > PSX_CARD_ID_MAX) return 0;
+    }
+    return 1;
+}
+
+static int save_is_live(void) {
+    return psx_mod_game_started()
+        && deck_resident(PSX_SAVE_LIVE)
+        && deck_resident(PSX_SAVE_MIRROR);
+}
+
+/* A row that writes save data and finds no save has nothing to do, and saying
+ * so beats doing nothing quietly — the row would otherwise sit there showing
+ * a value the player never actually got. Putting it back re-enters the
+ * callback once with 0, which every one of these returns on immediately. */
+static int s_starchips_row = -1;
+static int s_all_cards_row = -1;
+
+static void refuse(int row, const char *what) {
+    char msg[64];
+    snprintf(msg, sizeof msg, "%s: load a save first", what);
+    host_osd_push(msg, 2200);
+    if (row >= 0) psx_video_menu_set_row(row, 0);
+}
 
 /* --- Free spending -------------------------------------------------------
  * The StarChip total is a read-modify-write: `$v0 = $v0 + $v1` at 0x80021EE0
@@ -32,7 +92,7 @@ static uint32_t s_sc_last = 0;
 static int      s_sc_tracking = 0;
 
 static void free_spending_tick(void) {
-    if (!g_free_spending || !psx_mod_game_started()) {
+    if (!g_free_spending || !save_is_live()) {
         s_sc_tracking = 0;
         return;
     }
@@ -130,7 +190,6 @@ static void show_opp_hand_tick(void) {
 #define PSX_CARD_FACEDOWN   0x1000u
 #define PSX_OPP_REC_FIRST   15u   /* 15-19 hand, 20-29 field */
 #define PSX_OPP_REC_LAST    29u
-#define PSX_CARD_ID_MAX     722u
 
 static int g_force_faceup = 0;
 
@@ -167,13 +226,27 @@ void psx_ygo_cheats_tick(void) {
  * block and the interpreter picks up the new immediate — and a restored save
  * state cannot leave a stale compiled instruction behind.
  *
- * addiu sign-extends its 16-bit immediate, so keep values under 32768. */
+ * addiu sign-extends its 16-bit immediate, so keep values under 32768.
+ *
+ * Unlike the three save rows this one is safe from the moment the game starts,
+ * and was measured to be: both sites read 0x24021F40 from the frame the EXE
+ * becomes resident — which is exactly when psx_mod_game_started() flips —
+ * and hold it through the whole intro and the title. It patches the EXE's own
+ * text, which is resident precisely when the EXE is running, so it needs no
+ * save. The opcode check below therefore never refuses in practice; it is here
+ * so that if anything ever does land on those addresses the row declines
+ * instead of writing an immediate into the middle of it. */
+static void lp_patch_site(uint32_t pc, int value) {
+    if ((psx_mod_read_word(pc) >> 16) != 0x2402u) return;   /* addiu $v0,$zero */
+    psx_mod_write_code_word(pc, 0x24020000u | (uint32_t)value);
+}
+
 static void lp_changed(int value) {
     if (!psx_mod_game_started()) return;
     if (value < 1) value = 1;
     if (value > 32767) value = 32767;
-    psx_mod_write_code_word(0x800175D0u, 0x24020000u | (uint32_t)value);
-    psx_mod_write_code_word(0x8002DC70u, 0x24020000u | (uint32_t)value);
+    lp_patch_site(0x800175D0u, value);
+    lp_patch_site(0x8002DC70u, value);
 }
 
 /* --- STARCHIPS -----------------------------------------------------------
@@ -186,7 +259,8 @@ static void lp_changed(int value) {
  * live block, so writing the live copy is what propagates — writing a mirror
  * would display correctly and then be overwritten. */
 static void starchips_changed(int value) {
-    if (!psx_mod_game_started() || value <= 0) return;
+    if (value <= 0) return;
+    if (!save_is_live()) { refuse(s_starchips_row, "StarChips"); return; }
     psx_mod_write_word(PSX_STARCHIPS_ADDR, (uint32_t)value);
     s_sc_tracking = 0;   /* re-baseline so the guard does not refund this */
     host_osd_push("StarChips set", 1200);
@@ -235,16 +309,35 @@ static void force_faceup_changed(int value) {
  * Writing only the live copy does NOT stick: the chest screen rebuilds from
  * its own buffer and puts the old values straight back (measured — the first
  * attempt was reverted in full). Apply with the chest CLOSED, which is what
- * the row's hint tells the player. */
+ * the row's hint tells the player.
+ *
+ * The third copy is only the trunk while the chest's arena owns that memory.
+ * Measured across twelve in-game states: it is either a byte-for-byte copy of
+ * the live trunk (seven of them) or something else entirely (five of them held
+ * a foreign table of 8-byte records, 0xFE/0xFF bytes and all), with nothing in
+ * between. So "does it equal the live trunk right now" is an exact test rather
+ * than a plausibility one — and it has to be asked BEFORE the live trunk is
+ * overwritten, or it answers about our own write. */
+#define PSX_UI_TRUNK  0x80105D98u
+
+static int ui_copy_is_trunk(void) {
+    for (uint32_t i = 0; i < PSX_TRUNK_LEN; i++)
+        if (psx_mod_read_byte(PSX_UI_TRUNK + i) !=
+            psx_mod_read_byte(PSX_SAVE_LIVE + PSX_TRUNK_OFF + i))
+            return 0;
+    return 1;
+}
+
 static void all_cards_changed(int value) {
-    if (!psx_mod_game_started() || value <= 0) return;
-    static const uint32_t kTrunkBases[] = {
-        0x801D0250u, 0x801D3250u, 0x80105D98u
-    };
+    if (value <= 0) return;
+    if (!save_is_live()) { refuse(s_all_cards_row, "All cards"); return; }
+    const int ui_is_trunk = ui_copy_is_trunk();
     const uint8_t n = (uint8_t)(value > 3 ? 3 : value);
-    for (size_t b = 0; b < sizeof(kTrunkBases) / sizeof(kTrunkBases[0]); b++)
-        for (uint32_t i = 0; i < 722u; i++)
-            psx_mod_write_byte(kTrunkBases[b] + i, n);
+    for (uint32_t i = 0; i < PSX_TRUNK_LEN; i++) {
+        psx_mod_write_byte(PSX_SAVE_LIVE   + PSX_TRUNK_OFF + i, n);
+        psx_mod_write_byte(PSX_SAVE_MIRROR + PSX_TRUNK_OFF + i, n);
+        if (ui_is_trunk) psx_mod_write_byte(PSX_UI_TRUNK + i, n);
+    }
     host_osd_push("All cards granted", 1500);
 }
 
@@ -265,7 +358,7 @@ static const char *const ALLCARDS_HINTS[] = {
     "APPLY WITH THE CHEST CLOSED"
 };
 static const char *const OPPHAND_HINTS[] = {
-    "THEIR HAND STAYS FACE DOWN",
+    "THEIR HAND STAYS HIDDEN",
     "THEIR HAND IS DRAWN LIKE YOURS"
 };
 static const char *const FACEUP_HINTS[] = {
@@ -305,18 +398,17 @@ void psx_ygo_cheats_register_menu(void) {
 
     /* The remaining three are live save writes: NULL settings key, so they are
      * never written to the file and never re-applied at startup. */
-    h = psx_video_menu_add_number(
+    s_starchips_row = psx_video_menu_add_number(
         PSX_VM_MENU_CHEATS, "STARCHIPS", "ENTER TO TYPE A VALUE",
         0, 99999, /*slider*/0, NULL, 0, starchips_changed);
-    (void)h;
 
     h = psx_video_menu_add_option(
         PSX_VM_MENU_CHEATS, "FREE SPENDING", ONOFF_HINTS[0],
         ONOFF_LABELS, 2, NULL, 0, free_spending_changed);
     psx_video_menu_set_row_hints(h, ONOFF_HINTS);
 
-    h = psx_video_menu_add_option(
+    s_all_cards_row = psx_video_menu_add_option(
         PSX_VM_MENU_CHEATS, "ALL CARDS", ALLCARDS_HINTS[0],
         ALLCARDS_LABELS, 4, NULL, 0, all_cards_changed);
-    psx_video_menu_set_row_hints(h, ALLCARDS_HINTS);
+    psx_video_menu_set_row_hints(s_all_cards_row, ALLCARDS_HINTS);
 }
