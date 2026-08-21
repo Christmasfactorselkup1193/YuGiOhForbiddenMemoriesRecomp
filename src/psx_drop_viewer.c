@@ -46,6 +46,7 @@
 #include "psx_drop_db.h"
 #include "psx_drop_edits.h"
 #include "psx_drop_missing.h"
+#include "psx_duelist_icon_cache.h"
 #include "psx_duelist_icons.h"
 #include "psx_game_hooks.h"
 #include "psx_video_menu.h"
@@ -140,6 +141,9 @@ static void draw_icon(int x, int y, int duelist)
     const int dst_px = ICON_PX;
     const uint32_t *src = (duelist >= 0 && duelist < PSX_DUELIST_ICON_N)
                               ? PSX_DUELIST_ICONS[duelist] : 0;
+    /* No compile-time portrait (player builds ship none): the runtime cache,
+     * captured from this player's own FREE DUEL screen. Same 38x38 layout. */
+    if (!src) src = psx_duelist_icon_cache_get(duelist);
     if (!src) { px_fill(x, y, dst_px, dst_px, C_HEADER); return; }
     for (int j = 0; j < dst_px; j++) {
         if (y + j < 0 || y + j >= s_h) continue;
@@ -1868,13 +1872,20 @@ static void tick(void)
      * any time, and the edit layer bumps its generation on every change (a
      * hand-edited ini reload included); each changes what is on screen. */
     static int last_ready = -1, last_mod = -1;
-    static unsigned last_gen = 0;
+    static unsigned last_gen = 0, last_icon_gen = 0;
     const int ready = psx_card_db_ready();
     const int mod = psx_drop_missing_enabled();
     const unsigned gen = psx_drop_edits_generation();
     if (ready != last_ready || mod != last_mod || gen != last_gen) {
         last_ready = ready; last_mod = mod; last_gen = gen;
         if (ready) invalidate();
+        s_dirty = 1;
+    }
+    /* Portraits can arrive WHILE the window is open — the icon cache fills
+     * as the player browses FREE DUEL — and a redraw is all that needs. */
+    const unsigned icon_gen = psx_duelist_icon_cache_generation();
+    if (icon_gen != last_icon_gen) {
+        last_icon_gen = icon_gen;
         s_dirty = 1;
     }
     if (s_msg[0] && SDL_GetTicks() >= s_msg_until) {

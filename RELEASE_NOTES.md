@@ -1,5 +1,27 @@
 # Release notes
 
+## 0.3.1
+
+Extract this over your existing install as usual. Saves and savestates from
+0.3.0 are unaffected.
+
+### Fixed: duelist portraits in the Drop Table Manager
+
+**0.3.0 shipped with every portrait plate empty.** The portraits are Konami's
+art, so they are never in the download — but 0.3.0 had no way to get them at
+all: the capture only existed as a developer tool, so player builds drew
+plain plates everywhere.
+
+Now **the game captures its own portraits, from its own screen.** Open FREE
+DUEL and move through the opponent list once; every portrait on screen is
+captured as you go, the Manager fills in live if it is open, and the set is
+kept next to your saves (`duelist_icons.bin`) so it is there for good. A
+duelist you have never met draws nothing on that screen, and keeps a plain
+plate — there is genuinely nothing to capture.
+
+Nothing changes about what ships: the art comes from your machine, your
+disc, your screen, and never leaves.
+
 ## 0.3.0
 
 Extract this over your existing install as usual. Your saves live in

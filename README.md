@@ -136,9 +136,10 @@ so the two cannot disagree, and your edits apply over the mod's placements.
 Card names and ATK/DEF are read out of the running game; the drop tables are
 baked from your disc when you build. Duelist portraits are the game's FREE
 DUEL art and, like every other piece of Konami art here, are **never
-shipped** — a build captures them from your own running game
-(`tools/capture_duelist_icons.py`, debug build), and shows a plain plate
-where it has none.
+shipped** — instead **your game captures them itself, from its own screen,
+the first time you browse FREE DUEL**. Scroll the opponent list once and the
+Manager fills in for good (they persist next to your saves). A duelist you
+have never met has no portrait anywhere, and keeps a plain plate.
 
 ### 💰 Cheats — `CHEATS`
 

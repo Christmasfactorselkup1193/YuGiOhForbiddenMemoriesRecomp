@@ -28,6 +28,7 @@
 #include "psx_fusion_overlay.h"
 #include "psx_ygo_overlays.h"
 #include "psx_drop_edits.h"
+#include "psx_duelist_icon_cache.h"
 #include "psx_drop_missing.h"
 #include "psx_drop_viewer.h"
 
@@ -418,6 +419,19 @@ static void handle_drop_edits(int id, const char *json)
     send_fmt("{\"id\":%d,\"ok\":true,%s}", id, buf);
 }
 
+/* duelist_icons — the runtime portrait capture: how many the cache holds,
+ * captures and contrast-rejections this session, and whether a disk write
+ * is pending. */
+static void handle_duelist_icons(int id, const char *json)
+{
+    (void)json;
+    char buf[384];
+    if (!psx_duelist_icon_cache_state_json(buf, sizeof(buf))) {
+        send_err(id, "state unavailable"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true,%s}", id, buf);
+}
+
 static void handle_card_drops_state(int id, const char *json)
 {
     (void)json;
@@ -629,6 +643,7 @@ PSX_MOD_CONSTRUCTOR(psx_ygo_debug_install) {
     (void)psx_debug_add_command("drop_viewer_key",   handle_drop_viewer_key);
     (void)psx_debug_add_command("drop_viewer_text",  handle_drop_viewer_text);
     (void)psx_debug_add_command("drop_edits",        handle_drop_edits);
+    (void)psx_debug_add_command("duelist_icons",     handle_duelist_icons);
     (void)psx_debug_add_command("card_drops_list",   handle_card_drops_list);
     (void)psx_debug_add_command("card_drops_p3",     handle_card_drops_p3);
     (void)psx_debug_add_command("card_drops_set",    handle_card_drops_set);
