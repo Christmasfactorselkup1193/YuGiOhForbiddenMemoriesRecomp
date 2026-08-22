@@ -170,7 +170,6 @@ checked for this title.
 | `STARCHIPS` | 0–99999 | written straight to your save |
 | `FREE SPENDING` | on / off | purchases succeed, the deduction is undone |
 | `ALL CARDS` | 1, 2 or 3 of each | fills the trunk. Apply with the chest closed |
-| `REVEAL ALL PORTRAITS` | on / off | shows every FREE DUEL portrait so the Drop Table Manager can capture them — then reverts itself. Does not unlock duels |
 
 Neither reveal is an overlay. `SHOW OPPONENT HAND` clears the one flag that
 keeps their hand hidden, so you get their real sprites, names and ATK/DEF in the
