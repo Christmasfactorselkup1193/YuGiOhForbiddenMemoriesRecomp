@@ -432,6 +432,21 @@ static void handle_duelist_icons(int id, const char *json)
     send_fmt("{\"id\":%d,\"ok\":true,%s}", id, buf);
 }
 
+/* card_shop — the shopkeeper-menu CARD SHOP row/panel: signature match,
+ * open state, purchase counters. "The row is not appearing" divides into
+ * mod-off, signature-miss and count-byte-not-taken, and those are
+ * indistinguishable from pixels. */
+static void handle_card_shop(int id, const char *json)
+{
+    (void)json;
+    extern int psx_card_shop_state_json(char *, unsigned);
+    char buf[384];
+    if (psx_card_shop_state_json(buf, sizeof(buf)) <= 0) {
+        send_err(id, "state unavailable"); return;
+    }
+    send_fmt("{\"id\":%d,\"ok\":true,%s}", id, buf);
+}
+
 static void handle_card_drops_state(int id, const char *json)
 {
     (void)json;
@@ -644,6 +659,7 @@ PSX_MOD_CONSTRUCTOR(psx_ygo_debug_install) {
     (void)psx_debug_add_command("drop_viewer_text",  handle_drop_viewer_text);
     (void)psx_debug_add_command("drop_edits",        handle_drop_edits);
     (void)psx_debug_add_command("duelist_icons",     handle_duelist_icons);
+    (void)psx_debug_add_command("card_shop",         handle_card_shop);
     (void)psx_debug_add_command("card_drops_list",   handle_card_drops_list);
     (void)psx_debug_add_command("card_drops_p3",     handle_card_drops_p3);
     (void)psx_debug_add_command("card_drops_set",    handle_card_drops_set);

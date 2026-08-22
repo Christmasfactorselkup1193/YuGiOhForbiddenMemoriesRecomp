@@ -11,8 +11,10 @@
 #include <string.h>
 
 #include "mod_plugins.h"
+#include "psx_game_hooks.h"
 #include "psx_guest_overlay.h"
 
+#include "psx_card_shop.h"
 #include "psx_cd_overlay.h"
 #include "psx_fusion_overlay.h"
 #include "psx_rank_meter.h"
@@ -68,4 +70,19 @@ PSX_MOD_CONSTRUCTOR(psx_ygo_overlays_install) {
     (void)psx_guest_overlay_register(&rank);
     (void)psx_guest_overlay_register(&drops);
     (void)psx_guest_overlay_register(&fusion);
+    /* CARD SHOP: the shopkeeper-menu fifth row and its pack panel. Drawn on
+     * campaign menu screens, which draw nothing above them. */
+    {
+        PsxGuestOverlay shop = {
+            psx_card_shop_image,
+            psx_card_shop_origin,
+            NULL,
+            psx_card_shop_needs_present,
+            -1,
+            NULL,
+        };
+        (void)psx_guest_overlay_register(&shop);
+        psx_card_shop_register_menu();
+        (void)psx_game_add_frame_hook(psx_card_shop_tick);
+    }
 }
