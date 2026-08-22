@@ -112,6 +112,18 @@ mod_function_entry_funcs = [
 window_title = "Yu-Gi-Oh! Forbidden Memories Recompiled"
 memcard_dir = "saves"
 
+[audio]
+# The output cushion IS the input-to-sound latency: at the 180 ms ecosystem
+# default a menu blip lands about a sixth of a second after the button, which
+# reads as a sluggish UI rather than as an audio setting. That default is sized
+# for streamed-stage production gaps this title does not have.
+#
+# Measured here at 60 ms, in the menus and across a duel's disc load (this
+# game's worst audio-production stall): lowest ring fill 51.8 ms, zero
+# underruns. 40 ms also ran clean in menus but leaves little reserve for the
+# load, so 60 keeps roughly a duel-load's worth of headroom.
+buffer_ms = 60
+
 [video]
 renderer = "opengl"
 aspect_ratio = "4:3"
